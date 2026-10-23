@@ -87,26 +87,61 @@ def mark_owned(process):
     return process
 
 
+def _darwin_group_has_no_live_members(group):
+    """Disambiguate Darwin's EPERM for groups containing only zombies."""
+    try:
+        snapshot = subprocess.run(["/bin/ps", "-ax", "-o", "pgid=", "-o", "stat="],
+            capture_output=True, text=True, timeout=2, check=False)
+        rows = snapshot.stdout.splitlines()
+        if snapshot.returncode or not rows:
+            return False
+        for row in rows:
+            values = row.split()
+            if len(values) != 2:
+                return False
+            pgid, state = int(values[0]), values[1]
+            if pgid == group and not state.startswith("Z"):
+                return False
+        return True
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return False
+
+
+def _signal_owned_group(process, group, signum):
+    try:
+        os.killpg(group, signum)
+        if signum == signal.SIGKILL:
+            # SIGKILL cannot be ignored. Consume the owned group once delivered
+            # instead of retaining a numeric ID that may eventually be reused.
+            process._laurentina_owned_group = None
+        return True
+    except ProcessLookupError:
+        pass
+    except PermissionError:
+        # XNU killpg1 filters SZOMB members and returns EPERM when none remain
+        # eligible. Do not hide actual permission errors or an unreadable snapshot.
+        if sys.platform != "darwin" or not _darwin_group_has_no_live_members(group):
+            raise
+    # A nonexistent or zombie-only group cannot host inference. Forget its ID
+    # so a later cleanup never signals an unrelated group after PID reuse.
+    process._laurentina_owned_group = None
+    return False
+
+
 def terminate_owned(process):
     """Terminate only an explicitly owned child/session, never discovered PIDs."""
     if process is None:
         return
     group = getattr(process, "_laurentina_owned_group", None)
     if sys.platform != "win32" and group == process.pid and group != os.getpgrp():
-        try:
-            os.killpg(group, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
-        try:
-            process.wait(timeout=.5)
-        except subprocess.TimeoutExpired:
-            pass
-        # A leader can exit before its children. The recorded session remains
-        # ours; killing its group also reclaims those descendants.
-        try:
-            os.killpg(group, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        if _signal_owned_group(process, group, signal.SIGTERM):
+            try:
+                process.wait(timeout=.5)
+            except subprocess.TimeoutExpired:
+                pass
+            # A leader can exit before its children. Reclaim any descendants
+            # even after the leader has been reaped.
+            _signal_owned_group(process, group, signal.SIGKILL)
     elif process.poll() is None:
         process.kill()
     try:

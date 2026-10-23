@@ -27,6 +27,16 @@ class ValidationTests(unittest.TestCase):
     def write_json(self, data):
         (self.root / "summary.json").write_text(json.dumps(data), encoding="utf-8")
 
+    def directory_link(self, link, target):
+        if os.name == "nt":
+            completed = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(target)], capture_output=True)
+            self.assertEqual(completed.returncode, 0)
+            self.addCleanup(link.rmdir)
+        else:
+            link.symlink_to(target, target_is_directory=True)
+            self.addCleanup(link.unlink)
+        return link
+
     def test_file_sha_size_and_safe_receipt(self):
         digest = hashlib.sha256(b"actual result").hexdigest()
         result = self.check({"kind": "file", "path": "report.md", "sha256": digest})
@@ -123,6 +133,38 @@ class ValidationTests(unittest.TestCase):
     def test_hardlink_to_other_data_rejected(self):
         os.link(self.root / "report.md", self.root / "alias.md")
         self.assertEqual(self.check({"kind": "file", "path": "alias.md"})["status"], "failed")
+
+    def test_exact_mac_system_alias_is_canonicalized_but_artifact_links_are_rejected(self):
+        # Use a real native link/junction so this branch also runs on Windows;
+        # on macOS the same narrow mapping covers /var and /tmp temp roots.
+        canonical = self.root / "canonical-host-root"
+        selected = canonical / "selected-task"
+        selected.mkdir(parents=True)
+        (selected / "result.txt").write_text("real output", encoding="utf-8")
+        alias = self.directory_link(self.root / "system-root-alias", canonical)
+        spec = {"root": str(alias / "selected-task"), "checks": [{"kind": "file", "path": "result.txt"}]}
+        with patch.object(validation.sys, "platform", "darwin"), patch.object(validation, "_DARWIN_ROOT_ALIASES", {str(alias): str(canonical.resolve())}):
+            normalized = validation.normalize_spec(spec)
+            self.assertEqual(normalized["root"], str(selected.resolve()))
+            self.assertEqual(validation.validate_artifacts(normalized)["status"], "passed")
+            nested_link = self.directory_link(selected / "linked", selected)
+            linked_spec = {"root": str(alias / "selected-task"), "checks": [{"kind": "file", "path": "linked/result.txt"}]}
+            self.assertEqual(validation.validate_artifacts(linked_spec)["status"], "failed")
+            with self.assertRaises(validation.ValidationError):
+                validation.normalize_spec({**spec, "root": str(alias / "selected-task" / nested_link.name)})
+
+    def test_mac_alias_target_mismatch_and_unrecognized_ancestor_links_are_rejected(self):
+        canonical = self.root / "canonical-host-root"
+        selected = canonical / "selected-task"
+        selected.mkdir(parents=True)
+        alias = self.directory_link(self.root / "untrusted-alias", canonical)
+        spec = {"root": str(alias / "selected-task"), "checks": [{"kind": "file", "path": "result.txt"}]}
+        with patch.object(validation.sys, "platform", "darwin"):
+            with self.assertRaises(validation.ValidationError):
+                validation.normalize_spec(spec)
+            with patch.object(validation, "_DARWIN_ROOT_ALIASES", {str(alias): str(self.root / "different-target")}):
+                with self.assertRaises(validation.ValidationError):
+                    validation.normalize_spec(spec)
 
     def test_junction_or_symlink_not_followed_even_if_added_after_spec(self):
         directory = self.root / "actual"

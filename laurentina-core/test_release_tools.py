@@ -31,7 +31,7 @@ SDK = module("release_sdk_installer", ROOT / "scripts/install_avatar_runtimes.py
 class ReleaseToolsTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        self.base = Path(self.temp.name)
+        self.base = Path(self.temp.name).resolve()
 
     def tearDown(self):
         self.temp.cleanup()

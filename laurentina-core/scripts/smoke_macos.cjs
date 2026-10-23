@@ -39,6 +39,19 @@ async function connect(url){const socket=new WebSocket(url);await new Promise((r
   socket.addEventListener('open',resolve,{once:true});socket.addEventListener('error',reject,{once:true});
 });const client=new CDP(socket);await client.call('Runtime.enable');return client;}
 
+async function nativeVisibility(data, visible) {
+  const started=Date.now(),file=path.join(data,'native-verification.json');
+  while(Date.now()-started<5000) {
+    try {
+      const events=JSON.parse(fs.readFileSync(file,'utf8')).events;
+      const state=events.filter(item=>['main-shown','main-hidden'].includes(item.event)).at(-1);
+      if(state&&state.visible===visible&&state.renderer_alive&&state.backend_alive) return true;
+    } catch {}
+    await sleep(50);
+  }
+  return false;
+}
+
 async function main(){
   assert.equal(process.platform,'darwin','Use the macOS CI runner or a Mac');
   const application=path.resolve(process.argv[2]);
@@ -76,13 +89,17 @@ async function main(){
       await api.request('conversation.set_mode',{id:conv.id,mode:'private'});
       const privateMode=await api.request('conversation.get',{id:conv.id});
       await api.request('conversation.delete',{id:conv.id});
-      await api.request('window.close');await new Promise(resolve=>setTimeout(resolve,150));
-      const hiddenAfterClose=document.hidden;await api.request('window.main');
-      await new Promise(resolve=>setTimeout(resolve,150));
       return {version:api.version,ui_ready:document.getElementById('startup-overlay').hidden,
         initially_empty:boot.conversations.length===0,conversation_roundtrip:fetched.conversation.id===conv.id,
-        private_mode:privateMode.conversation.mode==='private',hidden_after_close:hiddenAfterClose,reopened:!document.hidden};
+        private_mode:privateMode.conversation.mode==='private'};
     })()`);
+    assert.equal(await nativeVisibility(coreData,true),true,'initial native window visibility');
+    await client.evaluate("window.laurentina.request('window.close')");
+    // Background audio intentionally disables throttling, so document.hidden
+    // stays false even for a hidden window. Read actual BrowserWindow events.
+    checks.hidden_after_close=await nativeVisibility(coreData,false);
+    await client.evaluate("window.laurentina.request('window.main')");
+    checks.reopened=await nativeVisibility(coreData,true);
     Object.assign(report.checks,checks);
     for(const key of ['ui_ready','initially_empty','conversation_roundtrip','private_mode','hidden_after_close','reopened'])assert.equal(checks[key],true,key);
     report.checks.external_data=fs.existsSync(path.join(coreData,'desktop'))&&!fs.existsSync(path.join(application,'Contents/Resources/app/.local'));

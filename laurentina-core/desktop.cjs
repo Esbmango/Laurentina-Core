@@ -487,6 +487,10 @@ async function createWindow() {
   window.webContents.on("will-navigate", (event, url) => { if (url !== MAIN_URL) event.preventDefault(); });
   window.webContents.on("will-attach-webview", event => event.preventDefault());
   window.webContents.on("render-process-gone", (_, detail) => log(`renderer exited ${detail.reason}`));
+  for (const name of ['show', 'hide']) window.on(name, () => recordNativeVerification({
+    event: name === 'show' ? 'main-shown' : 'main-hidden', visible: window.isVisible(),
+    renderer_alive: !window.webContents.isDestroyed(), backend_alive: Boolean(backend && !backend.killed),
+  }));
   window.once("ready-to-show", () => { window.show(); window.focus(); });
   window.on('close', event => { if (closeKeepsRunning() && !quitting) { event.preventDefault(); window.hide(); } });
   window.on("closed", () => { window = null; if (!closeKeepsRunning()) { if (orbWindow && !orbWindow.isDestroyed()) orbWindow.destroy(); app.quit(); } });

@@ -12,6 +12,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import stat
+import sys
 
 MAX_FILE = 16 * 1024 * 1024
 MAX_JSON = 2 * 1024 * 1024
@@ -23,6 +24,7 @@ DENIED_FILES = {"core.sqlite3", "work.sqlite3", "chat-tasks.sqlite3", "hermes-ap
                 "providers.json", "provider-settings.json", "credentials.json", "credentials", "id_rsa", "id_ed25519",
                 "auth.json", "config.toml", "tokens.json", "token.json", "accounts.json", "passwords.csv"}
 DENIED_EXTENSIONS = {".db", ".sqlite", ".sqlite3", ".pem", ".key", ".p12", ".pfx", ".dpapi"}
+_DARWIN_ROOT_ALIASES = {"/var": "/private/var", "/tmp": "/private/tmp", "/etc": "/private/etc"}
 
 
 class ValidationError(ValueError):
@@ -47,12 +49,26 @@ def _no_reparse(path):
                 raise ValidationError("成果核验不读取符号链接或目录联接。")
 
 
+def _system_root_alias(path):
+    # macOS exposes these system-owned aliases in native temporary-directory
+    # paths. Canonicalize only their exact expected target, then apply the same
+    # link checks to every component of the selected root and its artifacts.
+    # Arbitrary root/ancestor links and links below the selected root still fail.
+    if sys.platform == "darwin":
+        for alias_text, target_text in _DARWIN_ROOT_ALIASES.items():
+            alias, target = Path(alias_text), Path(target_text)
+            if path != alias and path.is_relative_to(alias) and _reparse(alias) and alias.resolve(strict=True) == target:
+                return target / path.relative_to(alias)
+    return path
+
+
 def _root(value):
     value = _text(value, "成果目录")
     path = Path(value)
     if not path.is_absolute() or value.startswith(("\\\\", "//")) or path == Path(path.anchor) or path == Path.home():
         raise ValidationError("请选择明确的本机任务目录。")
     try:
+        path = _system_root_alias(path)
         _no_reparse(path)
         resolved = path.resolve(strict=True)
     except OSError:

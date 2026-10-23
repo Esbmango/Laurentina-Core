@@ -34,6 +34,36 @@ test('Mac close keeps background tasks and companion alive; Windows close exits'
   assert.equal(closeKeepsRunning('darwin'), true);
   assert.equal(closeKeepsRunning('win32'), false);
 });
+
+test('Mac native window verification observes hide and reopen while its renderer and backend stay alive', async () => {
+  const vm = require('node:vm'), fs = require('node:fs');
+  const source = fs.readFileSync(path.join(__dirname,'desktop.cjs'),'utf8'), records=[];
+  class Window {
+    constructor() {
+      this.events=new Map();this.visible=false;
+      this.webContents={on(){},setWindowOpenHandler(){},isDestroyed:()=>false};
+    }
+    on(name,callback){this.events.set(name,callback);}
+    once(name,callback){this.on(name,callback);}
+    async loadURL() { this.events.get('ready-to-show')(); }
+    show(){this.visible=true;this.events.get('show')?.();}
+    hide(){this.visible=false;this.events.get('hide')?.();}
+    isVisible(){return this.visible;}
+    focus(){}
+    close(){this.events.get('close')({preventDefault:()=>{this.closePrevented=true;}});}
+  }
+  const context=vm.createContext({window:null,ROOT:__dirname,MAIN_URL:'laurentina://app/index.html',
+    path,BrowserWindow:Window,screen:{getPrimaryDisplay:()=>({workAreaSize:{width:1440,height:900}})},
+    backend:{killed:false},quitting:false,closeKeepsRunning:()=>true,
+    recordNativeVerification:value=>records.push(structuredClone(value)),log(){}});
+  vm.runInContext(source.slice(source.indexOf('async function createWindow('),source.indexOf('if (!app.requestSingleInstanceLock()')),context);
+  await context.createWindow();
+  context.window.close();context.window.show();
+  assert.equal(context.window.closePrevented,true);
+  assert.deepEqual(records.map(item=>[item.event,item.visible,item.renderer_alive,item.backend_alive]),[
+    ['main-shown',true,true,true],['main-hidden',false,true,true],['main-shown',true,true,true],
+  ]);
+});
 test('Mac touch audio uses the writable optional voice runtime, preserving Windows installs', () => {
   const root = path.resolve('Applications/Laurentina.app/Contents/Resources/app'), data = path.resolve('home/data');
   assert.equal(voiceInterpreter(data, {root, platform:'darwin', env:{}}), path.join(data,'runtimes/.voice-venv/bin/python'));

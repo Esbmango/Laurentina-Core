@@ -10,7 +10,7 @@ import tempfile
 import time
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import core_platform
 from core_voice import VoiceBridge
@@ -23,7 +23,7 @@ class PathsTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="platform-")
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
 
     def test_mac_bundle_uses_explicit_homes_and_interpreter_without_writing_bundle(self):
         env = {"LAURENTINA_CORE_HOME": str(self.root / "App.app/Contents/Resources/app"),
@@ -164,6 +164,71 @@ class SecretTests(unittest.TestCase):
 
 
 class ProcessTests(unittest.TestCase):
+    def test_successful_group_kill_consumes_ownership_before_repeated_cleanup(self):
+        process = SimpleNamespace(pid=47301, _laurentina_owned_group=47301,
+            wait=Mock(return_value=0), poll=Mock(return_value=0))
+        with patch.object(platform.sys, "platform", "darwin"), \
+                patch.object(platform.signal, "SIGKILL", 9, create=True), \
+                patch.object(platform.os, "getpgrp", return_value=19, create=True), \
+                patch.object(platform.os, "killpg", create=True) as killpg, \
+                patch.object(platform.subprocess, "run") as snapshot:
+            platform.terminate_owned(process)
+            self.assertEqual(process._laurentina_owned_group, None)
+            self.assertEqual([call.args for call in killpg.call_args_list],
+                [(47301, platform.signal.SIGTERM), (47301, platform.signal.SIGKILL)])
+            platform.terminate_owned(process)
+            self.assertEqual(killpg.call_count, 2)
+            snapshot.assert_not_called()
+
+    def test_darwin_cleanup_accepts_only_confirmed_zombie_or_absent_groups(self):
+        for first_signal, output in ((False, "47301 Z\n19 S\n"), (True, "19 S\n")):
+            with self.subTest(first_signal=first_signal):
+                process = SimpleNamespace(pid=47301, _laurentina_owned_group=47301,
+                    wait=Mock(return_value=0), poll=Mock(return_value=0))
+                denied = PermissionError(1, "Operation not permitted")
+                signals = [denied] if first_signal else [None, denied]
+                with patch.object(platform.sys, "platform", "darwin"), \
+                        patch.object(platform.signal, "SIGKILL", 9, create=True), \
+                        patch.object(platform.os, "getpgrp", return_value=19, create=True), \
+                        patch.object(platform.os, "killpg", side_effect=signals, create=True) as killpg, \
+                        patch.object(platform.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout=output)) as snapshot:
+                    platform.terminate_owned(process)
+                    self.assertEqual(process._laurentina_owned_group, None)
+                    self.assertEqual([call.args[0] for call in killpg.call_args_list], [47301] * len(signals))
+                    self.assertEqual(killpg.call_args_list[-1].args[1], platform.signal.SIGTERM if first_signal else platform.signal.SIGKILL)
+                    snapshot.assert_called_once_with(["/bin/ps", "-ax", "-o", "pgid=", "-o", "stat="],
+                        capture_output=True, text=True, timeout=2, check=False)
+                    platform.terminate_owned(process)
+                    self.assertEqual(killpg.call_count, len(signals), "dead group ID reused on repeated cleanup")
+
+    def test_darwin_cleanup_does_not_hide_live_group_permission_or_snapshot_failure(self):
+        snapshots = [SimpleNamespace(returncode=0, stdout="47301 S\n47301 Z\n"),
+                     SimpleNamespace(returncode=1, stdout=""),
+                     SimpleNamespace(returncode=0, stdout="unparseable\n"),
+                     subprocess.TimeoutExpired("/bin/ps", 2)]
+        for snapshot in snapshots:
+            with self.subTest(snapshot=snapshot):
+                process = SimpleNamespace(pid=47301, _laurentina_owned_group=47301,
+                    wait=Mock(return_value=0), poll=Mock(return_value=0))
+                result = {"side_effect": snapshot} if isinstance(snapshot, Exception) else {"return_value": snapshot}
+                with patch.object(platform.sys, "platform", "darwin"), \
+                        patch.object(platform.os, "getpgrp", return_value=19, create=True), \
+                        patch.object(platform.os, "killpg", side_effect=PermissionError(1, "Operation not permitted"), create=True), \
+                        patch.object(platform.subprocess, "run", **result):
+                    with self.assertRaises(PermissionError):
+                        platform.terminate_owned(process)
+                self.assertEqual(process._laurentina_owned_group, 47301)
+
+    def test_posix_cleanup_never_signals_current_or_unowned_groups(self):
+        for owned_group in (None, 19):
+            process = SimpleNamespace(pid=19, _laurentina_owned_group=owned_group,
+                wait=Mock(return_value=0), poll=Mock(return_value=0))
+            with patch.object(platform.sys, "platform", "darwin"), \
+                    patch.object(platform.os, "getpgrp", return_value=19, create=True), \
+                    patch.object(platform.os, "killpg", create=True) as killpg:
+                platform.terminate_owned(process)
+                killpg.assert_not_called()
+
     def test_real_worker_disables_bytecode_before_importing_source(self):
         from core_voice import ResidentWorker
         with tempfile.TemporaryDirectory(prefix="signed-source-") as directory:
@@ -193,24 +258,37 @@ class ProcessTests(unittest.TestCase):
 
     @unittest.skipIf(sys.platform == "win32", "Native POSIX process group")
     def test_owned_group_termination_reclaims_inference_grandchild(self):
-        with tempfile.TemporaryDirectory(prefix="owned-session-") as directory:
-            heartbeat = Path(directory) / "heartbeat"
-            child = "import pathlib,time; p=pathlib.Path(" + repr(str(heartbeat)) + ")\nwhile True: p.write_text(str(time.monotonic())); time.sleep(.03)"
-            parent = "import subprocess,sys,time; c=subprocess.Popen([sys.executable,'-c'," + repr(child) + "]);print(c.pid,flush=True);time.sleep(60)"
-            process = platform.mark_owned(subprocess.Popen([sys.executable, "-c", parent], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, **platform.subprocess_options(owned=True)))
-            try:
-                self.assertTrue(int(process.stdout.readline()) > 0)
-                deadline = time.monotonic() + 3
-                while not heartbeat.exists() and time.monotonic() < deadline:
-                    time.sleep(.03)
-                self.assertTrue(heartbeat.exists())
-                platform.terminate_owned(process)
-                self.assertIsNotNone(process.poll())
-                before = heartbeat.read_bytes(); time.sleep(.15)
-                self.assertEqual(heartbeat.read_bytes(), before, "grandchild still running after owner cleanup")
-            finally:
-                platform.terminate_owned(process)
-                process.stdout.close()
+        for ignores_term in (False, True):
+            with self.subTest(ignores_term=ignores_term), tempfile.TemporaryDirectory(prefix="owned-session-") as directory:
+                heartbeat = Path(directory) / "heartbeat"
+                child = "import pathlib,signal,time; p=pathlib.Path(" + repr(str(heartbeat)) + ")\n"
+                if ignores_term:
+                    child += "signal.signal(signal.SIGTERM,signal.SIG_IGN)\n"
+                child += "while True: p.write_text(str(time.monotonic())); time.sleep(.03)"
+                parent = "import subprocess,sys,time; c=subprocess.Popen([sys.executable,'-c'," + repr(child) + "]);print(c.pid,flush=True);time.sleep(60)"
+                process = platform.mark_owned(subprocess.Popen([sys.executable, "-c", parent], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, **platform.subprocess_options(owned=True)))
+                try:
+                    grandchild_pid = int(process.stdout.readline())
+                    self.assertGreater(grandchild_pid, 0)
+                    deadline = time.monotonic() + 3
+                    while not heartbeat.exists() and time.monotonic() < deadline:
+                        time.sleep(.03)
+                    self.assertTrue(heartbeat.exists())
+                    platform.terminate_owned(process)
+                    self.assertIsNotNone(process.poll())
+                    deadline = time.monotonic() + 3
+                    while time.monotonic() < deadline:
+                        state = subprocess.run(["/bin/ps", "-p", str(grandchild_pid), "-o", "stat="],
+                            capture_output=True, text=True, timeout=2).stdout.strip()
+                        if not state or state.startswith("Z"):
+                            break
+                        time.sleep(.03)
+                    self.assertTrue(not state or state.startswith("Z"), "inference grandchild survived group cleanup")
+                    before = heartbeat.read_bytes(); time.sleep(.15)
+                    self.assertEqual(heartbeat.read_bytes(), before, "grandchild still running after owner cleanup")
+                finally:
+                    platform.terminate_owned(process)
+                    process.stdout.close()
 
     @unittest.skipIf(sys.platform == "win32", "Native POSIX parent-death watchdog")
     def test_voice_worker_exits_after_abrupt_parent_death_without_loading_a_model(self):

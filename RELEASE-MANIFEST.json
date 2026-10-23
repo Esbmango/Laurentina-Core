@@ -2,7 +2,7 @@
   "schema": 1,
   "project": "LaurentinaCore",
   "version": "0.10.0",
-  "created_at": "2026-10-23T06:45:57.169610+00:00",
+  "created_at": "2026-10-23T16:14:31.574113+00:00",
   "kind": "source",
   "includes_private_data": false,
   "sdk_runtimes_included": false,
@@ -190,8 +190,8 @@
     },
     {
       "path": "hy-memory-starter/platform_support.py",
-      "bytes": 11895,
-      "sha256": "4909f9161798970f7dd195aa364ce632602df63d0a0a8e1101a1681971cfed9b"
+      "bytes": 13474,
+      "sha256": "48d276890eb37e3da052f8ce41a246a0c64bfa80b88fef04f0d3d4bd69a52ef6"
     },
     {
       "path": "hy-memory-starter/requirements.lock.txt",
@@ -480,8 +480,8 @@
     },
     {
       "path": "laurentina-core/core_work_validation.py",
-      "bytes": 15763,
-      "sha256": "9f39bb973be034eafed4fa655659f20b37a39348432017594a4b4e54958708e0"
+      "bytes": 16618,
+      "sha256": "6a683175f771c2345bd20c289fdda4f6e76fa17c3fbbb297a40165c8af111b60"
     },
     {
       "path": "laurentina-core/core_workspace.py",
@@ -490,8 +490,8 @@
     },
     {
       "path": "laurentina-core/desktop.cjs",
-      "bytes": 39058,
-      "sha256": "6d32fe3df68338d4663e2e99a2684924dd024786bd91e3a5bac701d23ee63bf1"
+      "bytes": 39352,
+      "sha256": "00b0b411e6def51d7ef4dbce5393df56f6cd6f9546a111c5f41831f75824a15a"
     },
     {
       "path": "laurentina-core/desktop_platform.cjs",
@@ -680,8 +680,8 @@
     },
     {
       "path": "laurentina-core/scripts/smoke_macos.cjs",
-      "bytes": 7330,
-      "sha256": "5377ee6987359c6b45e67852605e3fcad7db9f4c5e6d08c2cc7ba71a418d2a82"
+      "bytes": 8054,
+      "sha256": "c9701fd2a48fbd740616f9622f9989fba79f669d78b9b41429e80b7e383d51f4"
     },
     {
       "path": "laurentina-core/setup_custom_voice.py",
@@ -780,8 +780,8 @@
     },
     {
       "path": "laurentina-core/test_core_lifecycle.py",
-      "bytes": 1955,
-      "sha256": "c47dea018bb6c1a95e01ec553411659c0779bfbe7f5bdc8d239feaff64b4a5ff"
+      "bytes": 4842,
+      "sha256": "509a7cd83bb99a4cbd89bb0a84ae1e6590ed2a9825c947ae3926839fac05ccda"
     },
     {
       "path": "laurentina-core/test_core_memory.py",
@@ -795,8 +795,8 @@
     },
     {
       "path": "laurentina-core/test_core_platform.py",
-      "bytes": 15528,
-      "sha256": "714e152f7ffe3e042903bc989daf5a61cb615e72b0d5ca46e9d1404052b7cd28"
+      "bytes": 21126,
+      "sha256": "0e12ce87c6dd19d01c00218c61eff7b3260aa951eeefbff0d81dead104b71a69"
     },
     {
       "path": "laurentina-core/test_core_privacy.py",
@@ -855,8 +855,8 @@
     },
     {
       "path": "laurentina-core/test_desktop_platform.cjs",
-      "bytes": 2837,
-      "sha256": "b56b7e3fd37af96fcab01710eef3a06852b328f5d78bc88813c507c33b7f5a92"
+      "bytes": 4550,
+      "sha256": "c3525e353da450089c26ac097aa7391915416ad600eb086dba1bbf98163ad561"
     },
     {
       "path": "laurentina-core/test_mixed_mode_ui.cjs",
@@ -880,8 +880,8 @@
     },
     {
       "path": "laurentina-core/test_release_tools.py",
-      "bytes": 9172,
-      "sha256": "6c767338c8632631b91077b522236f2da7327f1ee04005eaef377c4a79f8a3d5"
+      "bytes": 9182,
+      "sha256": "603c0b77b018e72931cd730446eb480921b3e7055b0d2f96592cab2e9c74ac65"
     },
     {
       "path": "laurentina-core/test_speech_lifecycle_ui.cjs",
@@ -960,8 +960,8 @@
     },
     {
       "path": "laurentina-core/test_work_validation.py",
-      "bytes": 9202,
-      "sha256": "7f8a3dc0fd9c032b4ef92b94cf42a73d3ebf4e15df4cd600b898cce521334f4a"
+      "bytes": 11945,
+      "sha256": "ba9ef4b079bf8bec18771643a123af7095213fab196ae718c3f35422dc406ca8"
     },
     {
       "path": "laurentina-core/test_workspace_ui.cjs",
