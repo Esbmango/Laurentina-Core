@@ -1,6 +1,7 @@
 """Offline privacy, cancellation, persistence and HTTP contract checks."""
 import io
 import json
+import socket
 import tempfile
 import threading
 import time
@@ -435,6 +436,34 @@ class WireTests(unittest.TestCase):
             finally:
                 server.shutdown()
                 server.server_close()
+                core.db.close()
+
+    def test_loopback_http_binds_and_serves_without_hostname_resolution(self):
+        with tempfile.TemporaryDirectory(prefix="http-no-dns-", dir=TEST_ROOT) as directory:
+            core = offline_core(directory, memory=Memory(), ollama=Model())
+            server = None
+            thread = None
+            try:
+                with patch("socket.getfqdn", side_effect=AssertionError("Loopback must not resolve DNS")):
+                    server = CoreHTTP(core, token="test-token")
+                self.assertEqual(server.server_name, "127.0.0.1")
+                self.assertEqual(server.server_port, server.socket.getsockname()[1])
+                self.assertGreater(server.server_port, 0)
+                self.assertEqual(server.socket.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR), 0)
+                thread = threading.Thread(target=server.serve_forever, daemon=True)
+                thread.start()
+                opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+                request = urllib.request.Request(f"http://127.0.0.1:{server.server_port}/rpc",
+                    data=b'{"action":"bootstrap"}', headers={"Content-Type": "application/json",
+                    "X-Core-Token": "test-token"})
+                with opener.open(request, timeout=3) as response:
+                    self.assertTrue(json.load(response)["ok"])
+            finally:
+                if server is not None:
+                    if thread is not None:
+                        server.shutdown()
+                        thread.join(timeout=3)
+                    server.server_close()
                 core.db.close()
 
 

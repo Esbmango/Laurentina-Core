@@ -2,7 +2,7 @@
   "schema": 1,
   "project": "LaurentinaCore",
   "version": "0.10.0",
-  "created_at": "2026-10-23T16:14:31.574113+00:00",
+  "created_at": "2026-10-23T16:26:16.561870+00:00",
   "kind": "source",
   "includes_private_data": false,
   "sdk_runtimes_included": false,
@@ -60,8 +60,8 @@
     },
     {
       "path": "docs/CHANGELOG.md",
-      "bytes": 5007,
-      "sha256": "7a856f7b688d2193fece7c9eb70fbaee7ed4f81c2865f921251fc13f455c872f"
+      "bytes": 5209,
+      "sha256": "3943abecb04cb234c85c9540fb3f868bcdfe5e440603408074d4a3e577fffe32"
     },
     {
       "path": "docs/HYMEMORY.md",
@@ -120,8 +120,8 @@
     },
     {
       "path": "hy-memory-starter/app.py",
-      "bytes": 35429,
-      "sha256": "80c47a98debfede3a45817e984843645ab4bcc437535196033982d443475d6e5"
+      "bytes": 35682,
+      "sha256": "94fdc44f644269a141965aa66351f56df37fc6381815188f29ceb81a452e248d"
     },
     {
       "path": "hy-memory-starter/codex_rpc.py",
@@ -220,8 +220,8 @@
     },
     {
       "path": "hy-memory-starter/test_server_binding.py",
-      "bytes": 2951,
-      "sha256": "c45a2f65fc97430b288e449a4c47322f6b8d035f2af9867a1e6c970026898ad6"
+      "bytes": 3589,
+      "sha256": "da20442313b45a8ad89945cadbe3030195e7db72075b111295f371663fee9b37"
     },
     {
       "path": "hy-memory-starter/web/app.js",
@@ -420,8 +420,8 @@
     },
     {
       "path": "laurentina-core/core_backend.py",
-      "bytes": 104205,
-      "sha256": "fb5f0e53f24b98b1b8bc8bb6713bdc28a0f7fca52bb898604503736a7cfab482"
+      "bytes": 104532,
+      "sha256": "b8e0c9f382f8344fdc425ae8e9a4362cae5248231e936641f003ca9c52df7c7f"
     },
     {
       "path": "laurentina-core/core_memory.py",
@@ -505,8 +505,8 @@
     },
     {
       "path": "laurentina-core/docs/CHANGELOG.md",
-      "bytes": 5007,
-      "sha256": "7a856f7b688d2193fece7c9eb70fbaee7ed4f81c2865f921251fc13f455c872f"
+      "bytes": 5209,
+      "sha256": "3943abecb04cb234c85c9540fb3f868bcdfe5e440603408074d4a3e577fffe32"
     },
     {
       "path": "laurentina-core/docs/HYMEMORY.md",
@@ -770,8 +770,8 @@
     },
     {
       "path": "laurentina-core/test_core_backend.py",
-      "bytes": 21858,
-      "sha256": "26107e5f26df58d0959433b01ed8e29d04130692b9e25a3cf71b248bdbfd9024"
+      "bytes": 23511,
+      "sha256": "e893ac7f3278623f827df3feb6a3910b95d877b21c27fc7fc96a28133dbbee49"
     },
     {
       "path": "laurentina-core/test_core_fact_scheduler.py",

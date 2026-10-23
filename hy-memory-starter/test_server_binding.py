@@ -6,6 +6,7 @@ import socket
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from urllib.request import build_opener, ProxyHandler
 
 import app
@@ -32,6 +33,17 @@ class ServerBindingTest(unittest.TestCase):
     def close(server):
         server.close_memories()
         server.server_close()
+
+    def test_numeric_loopback_bind_never_waits_for_reverse_dns(self):
+        with patch.object(app.socket, "getfqdn", side_effect=AssertionError("Reverse DNS must not run")) as lookup:
+            server = app.AppServer(("127.0.0.1", 0), FakeService(self.directory / "offline"))
+            try:
+                self.assertEqual(server.server_name, "127.0.0.1")
+                self.assertEqual(server.server_port, server.socket.getsockname()[1])
+                self.assertGreater(server.server_port, 0)
+                lookup.assert_not_called()
+            finally:
+                self.close(server)
 
     def test_existing_owner_cannot_be_rebound_or_receive_second_owner_token(self):
         first = app.AppServer(("127.0.0.1", 0), FakeService(self.directory / "first"))

@@ -12,6 +12,7 @@ from pathlib import Path
 import re
 import secrets
 import socket
+from socketserver import TCPServer
 import sqlite3
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -275,7 +276,10 @@ class AppServer(ThreadingHTTPServer):
     def server_bind(self):
         if os.name == "nt":
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
-        return super().server_bind()
+        # The OS already provides the numeric bound address. HTTPServer's
+        # reverse DNS lookup can block an offline Mac before readiness.
+        TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
     def __init__(self, address, service, active_scope=""):
         super().__init__(address, Handler)

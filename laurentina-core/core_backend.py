@@ -21,6 +21,7 @@ import uuid
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from socketserver import TCPServer
 
 VERSION = "0.10.0"
 BASE_URL = "http://127.0.0.1:11434"
@@ -1642,6 +1643,12 @@ class Core:
 class CoreHTTP(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = False
+
+    def server_bind(self):
+        # This endpoint always binds a literal loopback IP. HTTPServer's
+        # reverse-DNS lookup adds no identity information and can stall macOS.
+        TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
     def __init__(self, core, token=None):
         self.core = core

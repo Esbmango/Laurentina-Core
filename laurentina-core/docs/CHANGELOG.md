@@ -7,6 +7,7 @@
 - A real local Core → Hermes → Qwen workflow generated a checked CSV report using file/terminal tools. Independent arithmetic, a corrupt-output negative test and restart receipt checks passed. Repair was explicitly dispatched; automatic repair, every tool and live approval/cancellation are not implied by this example.
 - Add Apple Silicon/macOS 15+ source setup and preview app building with pinned standalone Python and isolated base dependencies. Mac secrets use native Keychain; Windows DPAPI remains compatible. Application data and optional voice environments stay outside the application bundle.
 - Add Mac window lifecycle, microphone permission descriptions and requests, cross-Space companion behavior, POSIX worker ownership and Mac CI/build smoke checks. Optional voice retains CPU fallback; MPS acceleration and physical microphone/multi-display use still need device testing.
+- Core and HyMemory bind their local HTTP endpoints without reverse DNS, preventing offline/resolver delays before announcing readiness. Existing token and exclusive port ownership checks are retained.
 
 立绘下方操作条随人物可见下沿移动；真实工具工作流已验收并补齐契约传递、重启回执同步；新增 Mac 安装与预览应用构建。Mac 预览使用本地临时签名，尚未进行 Apple Developer ID 公证。
 
