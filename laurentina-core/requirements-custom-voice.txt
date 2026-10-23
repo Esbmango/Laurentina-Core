@@ -1,0 +1,8 @@
+# Isolated optional Qwen3-TTS runtime. Torch/CUDA is installed separately.
+transformers==4.57.3
+accelerate==1.12.0
+librosa==0.11.0
+soundfile==0.13.1
+sox==1.5.0
+onnxruntime==1.23.2
+einops==0.8.1

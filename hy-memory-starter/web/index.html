@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Laurentina · 记忆测试台</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Laurentina 首页"><span class="mark">L</span><span>LAURENTINA <small>MEMORY LAB</small></span></a>
+    <div class="top-actions"><span class="local"><i></i>本机运行</span><button id="stop" class="quiet">停止服务</button></div>
+  </header>
+  <main>
+    <section class="intro">
+      <div><p class="eyebrow">你的助手，从记住你开始</p><h1>让记忆延续到下一次对话。</h1><p class="subtitle">先跑通一条记忆，再逐步接入 Laurentina 的人格、声音和界面。</p></div>
+      <div class="installation"><span class="tiny-label">记忆引擎</span><strong>HyMemory <span id="version">检查中</span></strong><span id="engine-status">正在检查环境…</span></div>
+    </section>
+
+    <div id="notice" class="notice" role="status" aria-live="polite">正在连接本地服务…</div>
+
+    <div class="workspace">
+      <section class="panel config-panel" aria-labelledby="config-title">
+        <div class="section-heading"><span class="step">01</span><div><h2 id="config-title">连接模型</h2><p>尚未选择服务也没关系，环境已准备好。</p></div></div>
+        <form id="config-form" autocomplete="off">
+          <label for="preset">服务组合</label>
+          <select id="preset" name="preset">
+            <option value="custom">稍后决定 / 自定义服务</option>
+            <option value="local">本地 Qwen（Ollama）</option>
+            <option value="deepseek">DeepSeek + 阿里云百炼</option>
+            <option value="openai">OpenAI</option>
+          </select>
+          <label for="mode">记忆方式</label>
+          <select id="mode" name="mode">
+            <option value="pro">事实记忆 · 提取偏好、事实和意图</option>
+            <option value="lite">基础记忆 · 保存原文并检索</option>
+          </select>
+          <p class="field-note" id="mode-note">事实记忆需要聊天模型与嵌入模型。</p>
+
+          <fieldset id="llm-fields"><legend>聊天模型 <span>理解并整理记忆</span></legend>
+            <label for="llm_url">API 地址</label><input id="llm_url" name="llm_url" type="url" placeholder="https://…/v1" spellcheck="false">
+            <label for="llm_model">模型名称</label><input id="llm_model" name="llm_model" placeholder="选择上方服务可自动填入" spellcheck="false">
+            <label for="llm_key">API 密钥 <span id="llm-key-state"></span></label><input id="llm_key" name="llm_key" type="password" autocomplete="new-password" placeholder="只在本机填写">
+          </fieldset>
+          <fieldset><legend>嵌入模型 <span>把记忆变成可检索的数据</span></legend>
+            <label for="embed_url">API 地址</label><input id="embed_url" name="embed_url" type="url" placeholder="https://…/v1" spellcheck="false">
+            <div class="field-grid"><div><label for="embed_model">模型名称</label><input id="embed_model" name="embed_model" placeholder="text-embedding-…" spellcheck="false"></div><div><label for="dimensions">向量维度</label><input id="dimensions" name="dimensions" type="number" min="1" max="65536" value="1024"></div></div>
+            <label for="embed_key">API 密钥 <span id="embed-key-state"></span></label><input id="embed_key" name="embed_key" type="password" autocomplete="new-password" placeholder="只在本机填写">
+          </fieldset>
+          <label class="checkbox" id="same-key-row" hidden><input id="same-key" type="checkbox" checked> 两个模型使用同一把 OpenAI 密钥</label>
+          <div class="button-row"><button type="submit" class="primary" id="save">保存配置</button><button type="button" id="check" class="secondary" disabled>测试连接</button></div>
+          <p class="privacy">密钥由当前 Windows 账户加密保存。记忆存储在本机；测试、写入和检索会调用所选 API，可能产生费用。</p>
+        </form>
+      </section>
+
+      <div class="right-column">
+        <section class="panel memory-panel" aria-labelledby="memory-title">
+          <div class="section-heading"><span class="step">02</span><div><h2 id="memory-title">写下一条记忆</h2><p>从一条简单的偏好开始。</p></div></div>
+          <label class="sr-only" for="memory-text">要记住的内容</label>
+          <textarea id="memory-text" maxlength="12000" rows="5" placeholder="例如：我希望助手叫劳纶缇娜，平时用中文和我交流。"></textarea>
+          <div class="card-footer"><span id="write-state">配置完成后即可使用</span><button id="add" class="primary requires-config" disabled>记住这件事 <span aria-hidden="true">↗</span></button></div>
+        </section>
+
+        <section class="panel search-panel" aria-labelledby="search-title">
+          <div class="section-heading"><span class="step">03</span><div><h2 id="search-title">看看它还记不记得</h2><p>换一种说法提问，检查是否能找回相关记忆。</p></div></div>
+          <form id="search-form" class="search-row"><label class="sr-only" for="query">检索问题</label><input id="query" maxlength="12000" placeholder="我希望助手叫什么？" required><button id="search" class="primary requires-config" type="submit" disabled>检索</button></form>
+          <div id="results" class="results" aria-live="polite"><div class="empty-state"><span class="memory-symbol" aria-hidden="true">◎</span><strong>这里会出现找回的记忆</strong><p>先保存一条，再试着提问。重启服务后，记忆依然保留。</p></div></div>
+        </section>
+
+        <aside class="next-step"><span class="tiny-label">现在做到哪一步</span><h3>先验证记忆，再连接助手。</h3><p>这是 Laurentina 的记忆模块测试台。接入模型后，可以检验记忆保存与召回；人格对话、语音和立绘会在后续接入。</p><p class="profile-note">更换嵌入模型、维度或记忆方式会切换独立记忆库；切回原配置可继续使用原来的记忆。</p></aside>
+      </div>
+    </div>
+    <footer>LAURENTINA / LOCAL MEMORY WORKSPACE <span>仅此电脑可访问 · 127.0.0.1</span></footer>
+  </main>
+</body>
+</html>

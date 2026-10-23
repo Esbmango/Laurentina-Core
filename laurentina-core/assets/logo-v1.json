@@ -1,0 +1,58 @@
+{
+  "name": "Laurentina",
+  "logo_version": "V1",
+  "source_name": "logo-v1-original.png",
+  "original": {
+    "path": "assets/logo-v1-original.png",
+    "size": [
+      1254,
+      1254
+    ],
+    "mode": "RGB",
+    "bytes": 1228876,
+    "sha256": "0089164f40737d3645e8352b6babc22dc9abc0557995395928679bec8a6f74ab"
+  },
+  "cutout": {
+    "path": "assets/logo-v1-mark.png",
+    "size": [
+      1254,
+      1254
+    ],
+    "mode": "RGBA",
+    "sha256": "b4c0ef36180ebb461a560e1846e8810c5cc76a72c79901155dbd0c1a46992199",
+    "method": "built-in image_gen background-extraction",
+    "prompt_path": "assets/logo-v1-edit-prompt.txt"
+  },
+  "desktop": {
+    "path": "assets/logo-v1-desktop.png",
+    "sha256": "6b50dd110e38b926ba7a0f9cf4e46121bcac303926370690f32381679358762d",
+    "source_svg": "assets/logo-v1-desktop.svg",
+    "method": "code-native rounded app tile using the approved transparent mark"
+  },
+  "png": {
+    "path": "assets/icon.png",
+    "size": [
+      512,
+      512
+    ],
+    "sha256": "8c5e6549fe84c7c40805192e013149715af4939e95ae7347cdec3f2e81a997c1"
+  },
+  "ui_png": {
+    "path": "ui/logo-v1.png",
+    "sha256": "9ac28c350c1e9e631c3ac338e1380750ef199244946d9040ee2e625ab4c8d386"
+  },
+  "ico": {
+    "path": "assets/icon.ico",
+    "sizes": [
+      16,
+      24,
+      32,
+      48,
+      64,
+      128,
+      256
+    ],
+    "sha256": "b1ad15f8890132cc7989edc3b6fc64276f42190e49bdb001ea8836e2863148e1"
+  },
+  "transform": "image_gen mark extraction; code-native desktop app tile; standard size and format conversion; original source preserved"
+}

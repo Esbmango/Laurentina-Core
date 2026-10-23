@@ -1,0 +1,41 @@
+:root{color-scheme:dark;font-family:"Segoe UI","Microsoft YaHei UI",sans-serif;color:#e4f2ff;--touch-glow:#81d6ff55;--companion-presentation-scale:1}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;user-select:none}
+[hidden]{display:none!important}
+.orb-widget{height:100%;width:100%;display:flex;align-items:center;flex-direction:column;padding:0 0 8px;position:relative}
+.orb{width:164px;height:164px;flex:none;border:0;border-radius:50%;position:relative;padding:0;background:transparent;cursor:grab;touch-action:none;outline:none;isolation:isolate;transform:scale(var(--companion-presentation-scale));transform-origin:50% 50%}
+.orb:focus-visible{outline:1px solid #b1e5ff;outline-offset:3px}
+.orb:hover{filter:brightness(1.14)}
+.orb canvas{position:absolute;inset:0;height:100%;width:100%;pointer-events:none}
+.orb-avatar{display:none}
+.orb-name{font-size:11px;line-height:1.4;margin-top:3px;color:#e0f2ff;text-shadow:0 1px 5px #000,0 0 15px #000;font-weight:500;max-width:220px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.orb-status{font-size:10px;line-height:1.5;margin:2px 0 6px;color:#98c8e5;text-shadow:0 1px 4px #000,0 0 12px #000;max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.orb-name,.orb-status{flex:none;position:relative;z-index:2;pointer-events:none}
+.orb-status.error{color:#ffceaa}
+.orb-controls{display:flex;align-items:center;justify-content:center;padding:3px;gap:4px;background:#0b2031e6;border:1px solid #436c8b80;box-shadow:0 4px 16px #0003;border-radius:20px;flex:none;position:relative;z-index:3}
+.orb-controls button{display:grid;place-items:center;border:0;cursor:pointer;background:none;color:#afd7f0;width:30px;height:25px;border-radius:50%;padding:5px;outline:none}
+.orb-controls button:hover{background:#244d6d;color:#f0faff}
+.orb-controls button:focus-visible{outline:2px solid #c4e9ff;outline-offset:1px}
+.orb-controls svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.5;fill:none;stroke-linejoin:round;stroke-linecap:round}
+.orb-controls .record{color:#d3ebfa}
+.orb-controls button:disabled{opacity:.5;cursor:default}
+.recording .record,.listening .record{background:#235c7b;color:#e6faff}
+.recording .orb-status,.listening .orb-status{color:#a6e5ff}
+.dragging .orb,.dragging .illustration-button{cursor:grabbing}
+.illustration-button{display:flex;align-items:flex-end;justify-content:center;position:relative;flex:1;min-height:0;width:100%;border:0;background:transparent;color:#aed6ef;font:11px "Segoe UI","Microsoft YaHei UI",sans-serif;cursor:grab;touch-action:none;padding:0;outline:none;overflow:hidden}
+.illustration-button:focus-visible{outline:1px solid #b6ddf5;border-radius:12px}
+.illustration-button img,.illustration-button video{height:100%;width:100%;object-fit:contain;filter:drop-shadow(0 5px 10px #0004);pointer-events:none;user-select:none}
+.illustration-button>img{transform:scale(var(--companion-presentation-scale));transform-origin:50% 50%}
+.illustration-button canvas{display:block;max-width:100%;max-height:100%;pointer-events:none}
+.illustration .orb-widget{padding:0 0 8px}
+.illustration .orb-name{margin-top:5px}
+.illustration .orb-controls{background:#0b2031e8}
+.illustration.speaking .illustration-button{filter:drop-shadow(0 0 9px #66c5ff25)}
+.touch-pulse .orb{animation:companion-orb-touch .7s ease-out;transform-origin:50% 50%}
+.touch-pulse:not(.touch-custom) .illustration-button{animation:companion-touch-hop .72s ease-out;transform-origin:50% 100%}
+.touch-busy .orb,.touch-busy .illustration-button{animation:companion-touch-ack .5s ease-out}
+.touching.touch-custom .illustration-button{filter:drop-shadow(0 0 8px #66c5ff20)}
+@keyframes companion-orb-touch{0%,100%{transform:scale(var(--companion-presentation-scale))}32%{transform:scale(calc(var(--companion-presentation-scale)*.94));filter:brightness(1.3)}62%{transform:scale(calc(var(--companion-presentation-scale)*1.025))}}
+@keyframes companion-touch-hop{0%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}58%{transform:translateY(0)}76%{transform:translateY(-1px)}}
+@keyframes companion-touch-ack{0%,100%{filter:brightness(1)}45%{filter:brightness(1.12) drop-shadow(0 0 7px var(--touch-glow))}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}.touch-pulse .orb,.touch-pulse .illustration-button,.touch-busy .orb,.touch-busy .illustration-button{animation:companion-touch-ack .2s ease-out!important}}

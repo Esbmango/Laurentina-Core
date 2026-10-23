@@ -1,0 +1,115 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-10-21T16:41:23.806Z",
+  "network_at_runtime": false,
+  "runtimes": [
+    {
+      "file": "ui/avatars/vendor/live2dcubismcore-5.2.min.js",
+      "version": "5.2",
+      "source": "https://cubism.live2d.com/sdk-web/core/05/live2dcubismcore.min.js",
+      "bytes": 207155,
+      "sha256": "25ae938cb4fe282ce189b357bcc97e603d1e1f7ec78bf04150d401c23cdc792f",
+      "licenses": [
+        "assets/vendor/LIVE2D-PROPRIETARY-LICENSE.html"
+      ]
+    },
+    {
+      "file": "ui/avatars/vendor/cubism-framework-5-r.4.min.js",
+      "version": "5-r.4",
+      "source": "https://github.com/Live2D/CubismWebFramework/archive/refs/tags/5-r.4.zip",
+      "bytes": 162240,
+      "sha256": "fb3769ad622161498e52ada0130f630591f0504a5864ab72fe6899314553d433",
+      "licenses": [
+        "assets/vendor/LIVE2D-FRAMEWORK-LICENSE.md",
+        "assets/vendor/LIVE2D-OPEN-LICENSE.html"
+      ],
+      "build": "esbuild cubism-entry.ts --bundle --format=iife --global-name=LaurentinaCubism --minify --outfile=ui/avatars/vendor/cubism-framework-5-r.4.min.js",
+      "source_archive_sha256": "3e8701c1f891547ad0e8225841e02e00ee3257fa6bcdf0e7b70f4061f36d3647",
+      "exports": [
+        "export { CubismFramework } from \"./framework/CubismWebFramework-5-r.4/src/live2dcubismframework\";",
+        "export { Option } from \"./framework/CubismWebFramework-5-r.4/src/live2dcubismframework\";",
+        "export { CubismUserModel } from \"./framework/CubismWebFramework-5-r.4/src/model/cubismusermodel\";",
+        "export { CubismModelSettingJson } from \"./framework/CubismWebFramework-5-r.4/src/cubismmodelsettingjson\";",
+        "export { CubismEyeBlink } from \"./framework/CubismWebFramework-5-r.4/src/effect/cubismeyeblink\";",
+        "export { CubismBreath } from \"./framework/CubismWebFramework-5-r.4/src/effect/cubismbreath\";",
+        "export { BreathParameterData } from \"./framework/CubismWebFramework-5-r.4/src/effect/cubismbreath\";",
+        "export { CubismMatrix44 } from \"./framework/CubismWebFramework-5-r.4/src/math/cubismmatrix44\";",
+        "export { csmVector } from \"./framework/CubismWebFramework-5-r.4/src/type/csmvector\";",
+        "export { csmMap } from \"./framework/CubismWebFramework-5-r.4/src/type/csmmap\";",
+        "export { CubismMotion } from \"./framework/CubismWebFramework-5-r.4/src/motion/cubismmotion\";",
+        "export { CubismExpressionMotion } from \"./framework/CubismWebFramework-5-r.4/src/motion/cubismexpressionmotion\";"
+      ],
+      "build_tool": "0.25.12"
+    },
+    {
+      "file": "ui/avatars/vendor/spine-player-3.8.js",
+      "version": "3.8 commit8b4844bd",
+      "source": "https://raw.githubusercontent.com/EsotericSoftware/spine-runtimes/8b4844bd4b193ba9e54487ed397a777993cbad56/spine-ts/build/spine-player.js",
+      "bytes": 475015,
+      "sha256": "3f335337a8fa9c51c6502a7557ea44cd2bcb4f22483adae275e4ecf5ec69faec",
+      "licenses": [
+        "assets/vendor/SPINE-3.8-LICENSE.txt"
+      ]
+    },
+    {
+      "file": "ui/avatars/vendor/spine-player-4.0.31.min.js",
+      "version": "4.0.31",
+      "source": "https://registry.npmjs.org/@esotericsoftware/spine-player/-/spine-player-4.0.31.tgz",
+      "bytes": 229325,
+      "sha256": "e9ce520a15946a3e8d345670d78262d7aa71b9b164135a5424fe99ba191ab671",
+      "licenses": [
+        "assets/vendor/SPINE-4.0.31-LICENSE.txt"
+      ]
+    },
+    {
+      "file": "ui/avatars/vendor/spine-player-4.1.56.min.js",
+      "version": "4.1.56",
+      "source": "https://registry.npmjs.org/@esotericsoftware/spine-player/-/spine-player-4.1.56.tgz",
+      "bytes": 234064,
+      "sha256": "24cce070d92269584899187c3bf5d48a47e92e6f8501696855f0683c71bf2e0b",
+      "licenses": [
+        "assets/vendor/SPINE-4.1.56-LICENSE.txt"
+      ]
+    },
+    {
+      "file": "ui/avatars/vendor/spine-player-4.2.120.min.js",
+      "version": "4.2.120",
+      "source": "https://registry.npmjs.org/@esotericsoftware/spine-player/-/spine-player-4.2.120.tgz",
+      "bytes": 255471,
+      "sha256": "c331c0c12abbc75fa4e40c6e7d7856925721f3ab2a75be385637bb07878dc4d9",
+      "licenses": [
+        "assets/vendor/SPINE-4.2.120-LICENSE.txt"
+      ]
+    }
+  ],
+  "licenses": [
+    {
+      "file": "assets/vendor/LIVE2D-FRAMEWORK-LICENSE.md",
+      "sha256": "7ed849bff1e6499aa7cd882e47d246ddbbe06817c1e84cb974df949488302614"
+    },
+    {
+      "file": "assets/vendor/LIVE2D-OPEN-LICENSE.html",
+      "sha256": "a8274bf5f461335738791e9f392eb3f3684eaa22cbb4dfe1f3f887c3586a8d82"
+    },
+    {
+      "file": "assets/vendor/LIVE2D-PROPRIETARY-LICENSE.html",
+      "sha256": "e7b4ffc6c636de2cfdd6d2eed6a4e43fa7034e7f15a0c3a15f1603dbb3b4c2b6"
+    },
+    {
+      "file": "assets/vendor/SPINE-3.8-LICENSE.txt",
+      "sha256": "6142ee6cc2c03d3a918793e4750ae772bd3755c534d4a35e559e301acf51ec39"
+    },
+    {
+      "file": "assets/vendor/SPINE-4.0.31-LICENSE.txt",
+      "sha256": "6142ee6cc2c03d3a918793e4750ae772bd3755c534d4a35e559e301acf51ec39"
+    },
+    {
+      "file": "assets/vendor/SPINE-4.1.56-LICENSE.txt",
+      "sha256": "6142ee6cc2c03d3a918793e4750ae772bd3755c534d4a35e559e301acf51ec39"
+    },
+    {
+      "file": "assets/vendor/SPINE-4.2.120-LICENSE.txt",
+      "sha256": "435774fb793b0f67892899fc934f98009e64fd90ad3ab964117274e279a0f50e"
+    }
+  ]
+}

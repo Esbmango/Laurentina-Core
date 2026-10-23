@@ -1,0 +1,4 @@
+Tool: built-in image_gen
+Use case: background-extraction.
+
+Edit target: the supplied Laurentina V1 logo image. Extract ONLY the existing deep navy-blue stylized L/wave emblem as a precise clean transparent PNG cutout. Remove ALL gray outer background and ALL white rounded-square tile/background, including every white region inside the L and wave; these areas must be genuinely transparent alpha, not white or a checkerboard. Keep the exact original blue silhouette, stroke thickness, curved tip, triangular wave cutout, proportions, dark blue color and orientation. Do not redesign, retrace into a different symbol, add text, outlines, shadows, glows, gradients or any other shape. Frame the isolated original emblem centered on a square transparent canvas with modest transparent padding so it is legible as an app icon. The only change is removal of the non-blue background.

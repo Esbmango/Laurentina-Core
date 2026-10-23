@@ -1,0 +1,2 @@
+# Desktop/backend setup helpers; voice runtimes are optional and isolated.
+PyYAML==6.0.3

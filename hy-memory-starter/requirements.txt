@@ -1,0 +1,2 @@
+hy-memory==2.0.4
+qdrant-client==1.19.1

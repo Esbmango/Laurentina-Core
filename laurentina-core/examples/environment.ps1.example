@@ -1,0 +1,8 @@
+# Optional environment overrides; this file is not automatically loaded.
+# Replace only what you need. Never commit real secrets.
+# $env:LAURENTINA_ELECTRON = 'D:\Apps\Electron\electron.exe'
+# $env:LAURENTINA_CORE_PYTHON = 'D:\Apps\LaurentinaCore\hy-memory-starter\.venv\Scripts\python.exe'
+# $env:LAURENTINA_CORE_DATA = 'D:\PrivateData\LaurentinaCore'
+# $env:LAURENTINA_WORK_AUTO_START = '0'
+# $env:LAURENTINA_HERMES_URL = 'http://127.0.0.1:9000'
+# Obtain API credentials from your local secret store; do not put them here.

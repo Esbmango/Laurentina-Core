@@ -1,0 +1,5 @@
+.la-avatar-renderer { position: absolute; inset: 0; overflow: hidden; background: transparent !important; pointer-events: none; }
+.la-avatar-media, .la-avatar-canvas { display: block; width: 100%; height: 100%; object-fit: contain; background: transparent !important; pointer-events: none; }
+.la-avatar-renderer .spine-player { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; background: transparent !important; }
+.la-avatar-renderer .spine-player-canvas { display: block; width: 100% !important; height: 100% !important; background: transparent !important; }
+.la-avatar-renderer .spine-player-controls, .la-avatar-renderer .spine-player-logo, .la-avatar-renderer .spine-player-loading, .la-avatar-renderer .spine-player-error { display: none !important; }

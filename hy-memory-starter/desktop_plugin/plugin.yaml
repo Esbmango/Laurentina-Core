@@ -1,0 +1,3 @@
+name: laurentina_desktop_bridge
+version: 0.1.0
+description: User-requested conversation access to the signed-in local ChatGPT and Codex app, with shared HyMemory context.

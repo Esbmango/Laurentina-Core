@@ -1,0 +1,82 @@
+[
+  {
+    "file": "whisper-base/config.json",
+    "bytes": 2309,
+    "sha256": "56a6d8110d311f19c8f0471e562832c7527f146b567275bfca59fcf7c184da9a",
+    "repository": "Systran/faster-whisper-base",
+    "revision": "ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66",
+    "source_path": "config.json"
+  },
+  {
+    "file": "whisper-base/model.bin",
+    "bytes": 145217532,
+    "sha256": "d01c3014881c9c6f3133c182f3d2887eb6ca1c789a7538c5c007196857a0a6a9",
+    "repository": "Systran/faster-whisper-base",
+    "revision": "ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66",
+    "source_path": "model.bin"
+  },
+  {
+    "file": "whisper-base/tokenizer.json",
+    "bytes": 2203239,
+    "sha256": "fb7b63191e9bb045082c79fd742a3106a12c99513ab30df4a0d47fa6cb6fd0ab",
+    "repository": "Systran/faster-whisper-base",
+    "revision": "ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66",
+    "source_path": "tokenizer.json"
+  },
+  {
+    "file": "whisper-base/vocabulary.txt",
+    "bytes": 459861,
+    "sha256": "34ce3fe1c5041027b3f8d42912270993f986dbc4bb34cf27f951e34a1e453913",
+    "repository": "Systran/faster-whisper-base",
+    "revision": "ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66",
+    "source_path": "vocabulary.txt"
+  },
+  {
+    "file": "piper/medium-huayan-MODEL_CARD.txt",
+    "bytes": 276,
+    "sha256": "25d7d8f7a03e9382e629c5c4f074176e7ca84e08be12a873022e91fcac98c2c7",
+    "repository": "rhasspy/piper-voices",
+    "revision": "c10ece1aade47bb51c153c893d14e5bf8e5b7117",
+    "source_path": "zh/zh_CN/huayan/medium/MODEL_CARD"
+  },
+  {
+    "file": "piper/zh_CN-huayan-medium.onnx",
+    "bytes": 63201294,
+    "sha256": "9929917bf8cabb26fd528ea44d3a6699c11e87317a14765312420be230be0f3d",
+    "repository": "rhasspy/piper-voices",
+    "revision": "c10ece1aade47bb51c153c893d14e5bf8e5b7117",
+    "source_path": "zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx"
+  },
+  {
+    "file": "piper/zh_CN-huayan-medium.onnx.json",
+    "bytes": 4822,
+    "sha256": "d521dc45504a8ccc99e325822b35946dd701840bfb07e3dbb31a40929ed6a82b",
+    "repository": "rhasspy/piper-voices",
+    "revision": "c10ece1aade47bb51c153c893d14e5bf8e5b7117",
+    "source_path": "zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx.json"
+  },
+  {
+    "file": "piper/medium-lessac-MODEL_CARD.txt",
+    "bytes": 351,
+    "sha256": "ce49eb457742208166d399a40cdec2c7fa9db77960930031564ab56f12882645",
+    "repository": "rhasspy/piper-voices",
+    "revision": "c10ece1aade47bb51c153c893d14e5bf8e5b7117",
+    "source_path": "en/en_US/lessac/medium/MODEL_CARD"
+  },
+  {
+    "file": "piper/en_US-lessac-medium.onnx",
+    "bytes": 63201294,
+    "sha256": "5efe09e69902187827af646e1a6e9d269dee769f9877d17b16b1b46eeaaf019f",
+    "repository": "rhasspy/piper-voices",
+    "revision": "c10ece1aade47bb51c153c893d14e5bf8e5b7117",
+    "source_path": "en/en_US/lessac/medium/en_US-lessac-medium.onnx"
+  },
+  {
+    "file": "piper/en_US-lessac-medium.onnx.json",
+    "bytes": 4885,
+    "sha256": "efe19c417bed055f2d69908248c6ba650fa135bc868b0e6abb3da181dab690a0",
+    "repository": "rhasspy/piper-voices",
+    "revision": "c10ece1aade47bb51c153c893d14e5bf8e5b7117",
+    "source_path": "en/en_US/lessac/medium/en_US-lessac-medium.onnx.json"
+  }
+]

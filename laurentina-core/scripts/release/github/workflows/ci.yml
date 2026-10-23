@@ -1,0 +1,35 @@
+name: Source checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated base dependencies without models or Electron
+        shell: pwsh
+        run: ./laurentina-core/scripts/setup_portable.ps1 -PythonExe (Get-Command python).Source -SkipNpm -SkipMemoryDefaults
+      - name: Core tests without model downloads
+        working-directory: laurentina-core
+        env:
+          LAURENTINA_PROVIDER_HTTP_TEST: '1'
+        run: ../hy-memory-starter/.venv/Scripts/python.exe -X utf8 -m unittest discover -p 'test*.py' -q
+      - name: UI and desktop tests
+        working-directory: laurentina-core
+        run: node --test test*.cjs
+      - name: Memory bridge and Windows server isolation
+        working-directory: hy-memory-starter
+        run: ./.venv/Scripts/python.exe -X utf8 -m unittest test_server_binding test_desktop_bridge -q

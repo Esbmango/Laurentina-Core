@@ -1,0 +1,5 @@
+name: hymemory
+version: 0.1.0
+description: Local HyMemory long-term memory with Qwen; isolated runtime and per-profile storage.
+hooks:
+  - on_session_end

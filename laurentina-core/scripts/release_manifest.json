@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "core": [
+    "core_*.py", "local_voice_service.py", "touch_audio_import.py",
+    "avatar_library.cjs", "companion.cjs", "companion_hit_test.cjs", "desktop.cjs", "preload.cjs", "provider_help.cjs", "touch_library.cjs",
+    "launch.pyw", "package.json", "package-lock.json", "requirements*.txt", "voice-models-lock.json",
+    "Setup.cmd", "SetupVoice.cmd", "SetupCustomVoice.cmd", "Start.cmd", "setup_*.py", "install_work_source.py",
+    "build_brand_assets.py", "render_brand_icon.cjs", "test_*.py", "test_*.cjs", ".gitignore", "README.md",
+    "ui/*.html", "ui/*.css", "ui/*.js", "ui/logo-v1.png",
+    "ui/avatars/avatar-renderer.js", "ui/avatars/avatar-renderer.css", "ui/avatars/render_quality.js",
+    "assets/icon.ico", "assets/icon.png", "assets/icon.svg", "assets/logo-v1*.png", "assets/logo-v1*.json", "assets/logo-v1-desktop.svg", "assets/logo-v1-desktop.ico", "assets/logo-v1-edit-prompt.txt",
+    "assets/licenses/*", "assets/vendor/*", "scripts/**/*.py", "scripts/**/*.ps1", "scripts/**/*.cmd", "scripts/**/*.yml", "scripts/*.json", "docs/*.md", "examples/*"
+  ],
+  "memory": [
+    "app.py", "launcher.py", "mcp_stdio.py", "shared_memory.py", "codex_rpc.py", "desktop_link.py",
+    "install_hermes.py", "install_shared_bridge.py", "activate_shared_bridge.py", "configure_local.py", "local_probe.py",
+    "requirements.txt", "requirements.lock.txt", "Start.cmd", "selftest.py", "test_desktop_bridge.py", "test_server_binding.py",
+    "hermes_plugin/__init__.py", "hermes_plugin/plugin.yaml", "hermes_plugin/README.md",
+    "desktop_plugin/__init__.py", "desktop_plugin/plugin.yaml", "web/*.html", "web/*.css", "web/*.js"
+  ],
+  "root_files": {
+    "README.md": "README.md",
+    ".gitignore": ".gitignore",
+    "Setup.cmd": "scripts/release/RootSetup.cmd",
+    "Start.cmd": "scripts/release/RootStart.cmd",
+    ".github/workflows/ci.yml": "scripts/release/github/workflows/ci.yml"
+  },
+  "excluded": [
+    "Private runtime and account data (.local, .runtime, virtual environments, node_modules)",
+    "Synced project sources, conversations, memories, keys, voice recordings, character/model resources",
+    "Whole third-party repositories and SDK runtime JavaScript (optional separate installer)",
+    "Local delivery/history/research/verification reports and screenshots"
+  ]
+}

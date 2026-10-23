@@ -1,0 +1,4 @@
+# Kept separate so the unused Gradio demo does not replace the Core UI.
+# Install with --no-deps --require-hashes after requirements-custom-voice.txt.
+qwen-tts==0.1.1 --hash=sha256:11a290d8dabc7ef91a90c54478c8ab19b3edb1d85c0882313721892bdc4af15d
+faster-qwen3-tts==0.3.2 --hash=sha256:b17b2839d56cb178f5c382d85214ae62852b5728830bfeda066e6a15c832a364
