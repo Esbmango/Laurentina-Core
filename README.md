@@ -1,4 +1,4 @@
-# Laurentina Core
+# Laurentina Core Test1
 
 <img src="https://raw.githubusercontent.com/Esbmango/Laurentina-Core/main/laurentina-core/assets/icon.png" width="80" height="80" alt="Laurentina L logo">
 
