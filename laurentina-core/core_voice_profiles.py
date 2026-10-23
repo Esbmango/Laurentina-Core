@@ -8,10 +8,12 @@ import json
 import math
 import os
 from pathlib import Path
+from core_platform import project_home, voice_environment, venv_python, python_site, subprocess_options, mark_owned, terminate_owned
 import re
 import secrets
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import urllib.request
@@ -37,11 +39,12 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 class VoiceProfiles:
     def __init__(self, data_dir, root_dir=None):
         self.data_dir = Path(data_dir).resolve()
-        self.root = Path(root_dir).resolve() if root_dir else Path(__file__).resolve().parent
+        self.root = Path(root_dir).resolve() if root_dir else project_home("core", Path(__file__).resolve().parent)
         self.folder = self.data_dir / "voice-profiles"
-        self.folder.mkdir(parents=True, exist_ok=True)
-        self.python = self.root / ".custom-voice-venv" / "Scripts" / "python.exe"
-        self.model_path = self.root / ".local" / "models" / MODEL_FOLDER
+        self.folder.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self.environment = voice_environment(self.root, ".custom-voice-venv", data=self.data_dir)
+        self.python = venv_python(self.environment)
+        self.model_path = (self.data_dir if sys.platform == "darwin" else self.root / ".local") / "models" / MODEL_FOLDER
         self.endpoint = f"http://127.0.0.1:{SERVICE_PORT}/v1/audio/speech"
         self.identity = hashlib.sha256(str(self.data_dir).encode("utf-8")).hexdigest()[:24]
         self.token_path = self.data_dir / "local-voice-service.token"
@@ -105,9 +108,9 @@ class VoiceProfiles:
             source = path / ("upload" + Path(filename).suffix.lower())
             source.write_bytes(raw)
             try:
-                result = subprocess.run([str(self.python), "-E", "-s", "-X", "utf8", str(self.root / "local_voice_service.py"),
+                result = subprocess.run([str(self.python), "-B", "-E", "-s", "-X", "utf8", str(self.root / "local_voice_service.py"),
                     "--normalize", str(source), "--output", str(path / "reference.wav")],
-                    capture_output=True, timeout=45, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                    capture_output=True, timeout=45, **subprocess_options())
                 if result.returncode:
                     raise ValueError("无法读取参考音频，请使用 3–30 秒清晰、单人说话的录音。")
                 with wave.open(str(path / "reference.wav"), "rb") as audio:
@@ -140,7 +143,7 @@ class VoiceProfiles:
 
     def status(self):
         health = self._health()
-        site = self.root / ".custom-voice-venv" / "Lib" / "site-packages"
+        site = python_site(self.environment)
         installed = self.python.is_file() and all((site / name).is_file() for name in ("qwen_tts/__init__.py", "torch/__init__.py", "soundfile.py"))
         ready = installed and (self.model_path / "model.safetensors").is_file() and (self.model_path / "speech_tokenizer" / "model.safetensors").is_file()
         value = {"installed": installed, "models_ready": ready, "service_running": bool(health), "endpoint": self.endpoint,
@@ -169,10 +172,11 @@ class VoiceProfiles:
             env = os.environ.copy()
             env.update(HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", HF_DATASETS_OFFLINE="1", HF_HUB_DISABLE_TELEMETRY="1")
             with log.open("wb") as stream:
-                self.process = subprocess.Popen([str(self.python), "-E", "-s", "-X", "utf8", str(self.root / "local_voice_service.py"),
+                self.process = subprocess.Popen([str(self.python), "-B", "-E", "-s", "-X", "utf8", str(self.root / "local_voice_service.py"),
                     "--data-dir", str(self.data_dir), "--model-dir", str(self.model_path), "--port", str(SERVICE_PORT), "--parent-pid", str(os.getpid())],
                     cwd=self.root, stdin=subprocess.DEVNULL, stdout=stream, stderr=stream, env=env,
-                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                    **subprocess_options(owned=True))
+                mark_owned(self.process)
             for _ in range(40):
                 if self._health():
                     return self.status()
@@ -213,11 +217,7 @@ class VoiceProfiles:
                 except Exception:
                     pass
             if self.process and self.process.poll() is None:
-                self.process.terminate()
-                try:
-                    self.process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    self.process.kill()
+                terminate_owned(self.process)
                 self.process = None
         return {"ok": True}
 

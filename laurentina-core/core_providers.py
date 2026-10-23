@@ -1,9 +1,8 @@
-"""Explicit daily model providers with separate Windows-encrypted API keys."""
+"""Explicit daily model providers with separate OS-protected API keys."""
 from __future__ import annotations
 
 import base64
 from copy import deepcopy
-import ctypes
 import json
 import os
 from pathlib import Path
@@ -11,6 +10,7 @@ import re
 import threading
 import uuid
 from urllib.error import HTTPError
+from core_platform import protect_bytes, SecretStoreError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
@@ -26,25 +26,10 @@ class ProviderError(RuntimeError):
 
 
 def _crypt(data, decrypt=False):
-    if os.name != "nt":
-        raise ProviderError("API 密钥使用 Windows 账户加密，请在同一 Windows 账户运行。")
-    class Blob(ctypes.Structure):
-        _fields_ = [("size", ctypes.c_uint32), ("data", ctypes.POINTER(ctypes.c_ubyte))]
-    backing = ctypes.create_string_buffer(data)
-    source = Blob(len(data), ctypes.cast(backing, ctypes.POINTER(ctypes.c_ubyte)))
-    target = Blob()
-    crypt, kernel = ctypes.WinDLL("crypt32", use_last_error=True), ctypes.WinDLL("kernel32", use_last_error=True)
-    kernel.LocalFree.argtypes, kernel.LocalFree.restype = [ctypes.c_void_p], ctypes.c_void_p
-    method = crypt.CryptUnprotectData if decrypt else crypt.CryptProtectData
-    method.argtypes = [ctypes.POINTER(Blob), ctypes.c_void_p if decrypt else ctypes.c_wchar_p,
-        ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint32, ctypes.POINTER(Blob)]
-    method.restype = ctypes.c_int
-    if not method(ctypes.byref(source), None, None, None, None, 1, ctypes.byref(target)):
-        raise ProviderError("API 密钥无法加密或解密，请使用保存它的 Windows 账户。")
     try:
-        return ctypes.string_at(target.data, target.size)
-    finally:
-        kernel.LocalFree(target.data)
+        return protect_bytes(data, decrypt=decrypt)
+    except SecretStoreError as exc:
+        raise ProviderError(str(exc)) from None
 
 
 def _seal(key):
@@ -55,7 +40,7 @@ def _unseal(cipher):
     try:
         return _crypt(base64.b64decode(cipher, validate=True), decrypt=True).decode("ascii")
     except Exception as exc:
-        raise ProviderError("API 密钥无法解密，请使用保存它的 Windows 账户重新配置。") from exc
+        raise ProviderError("API 密钥无法解密，请在保存时的本机账户中解锁安全存储或重新配置。") from exc
 
 
 class _NoRedirect(HTTPRedirectHandler):

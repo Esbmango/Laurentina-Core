@@ -8,19 +8,48 @@ import sys
 import uuid
 
 CORE = Path(__file__).resolve().parent.parent
-MEMORY = CORE.parent / "hy-memory-starter"
+sys.path.insert(0, str(CORE))
+from core_platform import project_home, project_data
+MEMORY = project_home("memory", CORE.parent / "hy-memory-starter")
 
 
-def initialize(memory=MEMORY, *, model="qwen3.5:9b", embedding="qwen3-embedding:0.6b", hermes_home=None):
+def initialize(memory=None, *, model="qwen3.5:9b", embedding="qwen3-embedding:0.6b", hermes_home=None, data_dir=None):
+    # Explicit source roots in installation tests remain self-contained.
+    directory = Path(data_dir) if data_dir is not None else (Path(memory) / ".local" if memory is not None else project_data("memory", MEMORY))
+    memory = Path(memory or MEMORY)
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with (directory / "initialize.lock").open("a+b") as lock:
+        try:
+            if os.name == "nt":
+                import msvcrt
+                lock.seek(0)
+                if not lock.read(1): lock.write(b"0"); lock.flush()
+                lock.seek(0)
+                msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            return {"created": False, "reason": "Memory initialization already in progress."}
+        try:
+            return _initialize(memory, directory, model=model, embedding=embedding, hermes_home=hermes_home)
+        finally:
+            if os.name == "nt":
+                lock.seek(0)
+                msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+
+def _initialize(memory, directory, *, model, embedding, hermes_home):
     # Never change existing encrypted settings or re-key an existing namespace.
-    directory = Path(memory) / ".local"
     config_path = directory / "config.dpapi"
     profile_path = directory / "hermes-integration.json"
     if config_path.exists() or profile_path.exists():
         return {"created": False, "reason": "Existing memory configuration preserved."}
     sys.path.insert(0, str(memory))
     import app
-    directory.mkdir(parents=True, exist_ok=True)
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     scope = (hashlib.sha256(os.path.normcase(str(Path(hermes_home).resolve())).encode()).hexdigest()[:32]
              if hermes_home else uuid.uuid4().hex)
     profile = {"scope": scope, "profile_kind": "hermes" if hermes_home else "standalone"}

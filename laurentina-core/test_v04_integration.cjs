@@ -123,13 +123,15 @@ test('native voice IPC rejects subframes and unrelated renderer owners', async (
   assert.equal(f.calls.length, 0);
 });
 
-test('missing persisted avatar falls back to a visible orb without breaking the main app', async () => {
+for (const platform of ['win32', 'darwin']) test(`missing persisted avatar falls back to a visible orb on ${platform}`, async () => {
   let settings = { mode: 'avatar', avatar: null, visible: true, scale: 1.5 }, visible = false;
   const sends = [];
+  const workspaces = [];
   const orbWindow = { isDestroyed: () => false, getBounds: () => ({ x: 10, y: 20, width: 100, height: 100 }),
     setBounds: () => {}, setTitle: () => {}, show: () => { visible = true; }, focus: () => {},
+    setVisibleOnAllWorkspaces: (enabled, options) => workspaces.push({enabled, options:structuredClone(options)}),
     webContents: { setZoomFactor: () => {}, send: (channel, value) => sends.push({ channel, value }) } };
-  const context = vm.createContext({ orbWindow, endCompanionDrag: () => {}, startCompanionHitTest: () => {},
+  const context = vm.createContext({ process:{platform}, orbWindow, endCompanionDrag: () => {}, startCompanionHitTest: () => {},
     companionPublic: () => ({ ...settings }), companion: { save: patch => { settings = { ...settings, ...patch }; } },
     screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1200, height: 800 } }) },
     geometry: () => ({ x: 10, y: 20, width: 100, height: 100, factor: 1 }),
@@ -138,6 +140,7 @@ test('missing persisted avatar falls back to a visible orb without breaking the 
   await context.showOrb();
   assert.equal(settings.mode, 'orb'); assert.equal(settings.scale, 1.5); assert.equal(settings.visible, true);
   assert.equal(visible, true); assert.equal(sends[0].value.mode, 'orb');
+  assert.deepEqual(workspaces, platform === 'darwin' ? [{enabled:true, options:{visibleOnFullScreen:true}}] : []);
 });
 
 test('orb microphone captures private context before a delayed voice-status request', async () => {

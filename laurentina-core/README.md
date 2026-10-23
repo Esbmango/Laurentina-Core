@@ -6,7 +6,7 @@
 
 可自定义形象、声音和长期记忆的个人桌面 AI 助手，把日常聊天、本地私聊、共享记忆和工作任务集中在一个界面里。
 
-**0.9.2 · Windows 10/11 x64 源码预览版。** 其他系统尚未完成适配；仓库不附带模型、个人数据、账号或 API 额度。
+**0.10.0 · Windows 10/11 x64 源码预览与 Mac Apple Silicon 预览。** Mac 首版目标为 macOS 15+；模型、个人数据、账号和 API 额度不内附。
 
 ## 功能
 
@@ -20,7 +20,7 @@
 
 这是开发中的预览版。连接器、模型与操作系统的兼容性需要在目标环境验证；隔离测试不等于已经在所有第三方版本上验收。
 
-## 快速开始
+## Windows 快速开始
 
 1. 从 [GitHub](https://github.com/Esbmango/Laurentina-Core) 下载完整源码，解压到自己可写的目录，例如 `D:\Apps\LaurentinaCore`。保留两个子目录的相邻关系。
 2. 安装 [Python 3.12 x64](https://www.python.org/downloads/)（含 Python Launcher）与 [Node.js 22 LTS](https://nodejs.org/)（含 npm）。
@@ -38,6 +38,12 @@
 
 只想先看界面，可以先执行前 3 步并启动；未配置的聊天、记忆、语音和工作功能会显示未就绪。
 
+## Mac 快速开始
+
+Release 中的 Mac arm64 预览应用内置基础运行环境，下载 DMG 后拖入 Applications。该预览为本地签名、尚未进行 Apple 公证，首次打开按系统对该应用的提示确认。模型与可选语音仍单独安装。
+
+源码安装使用原生 arm64 Python 3.12 和 Node.js 22+，双击根目录 **Setup.command**、**Start.command**。详细安装、数据位置、可选组件与验收范围见 [Mac 指南](docs/MACOS.md)。
+
 ## 可选功能
 
 | 功能 | 安装 / 配置 |
@@ -52,7 +58,7 @@
 
 ## 数据与许可
 
-聊天、记忆、导入形象、录音、密钥和模型都在各子项目的 `.local/` 等运行目录中，**不随源码发布**。密钥使用当前 Windows 账户的 DPAPI 保存；聊天和记忆数据库不会因此自动加密，请保护本机账户和备份。
+聊天、记忆、导入形象、录音、密钥和模型都在各子项目的 `.local/` 等运行目录中，Mac 使用用户 Application Support 目录，**不随源码发布**。Windows 密钥使用当前账户 DPAPI，Mac 使用系统 Keychain；聊天和记忆数据库不会因此自动加密，请保护本机账户和备份。
 
 私聊使用本地模型与私密记忆；日常云端聊天和工作任务会把明确提交的内容发送到对应服务。私密原文不应作为共享内容发送。
 
@@ -62,7 +68,7 @@
 
 Laurentina Core is a customizable personal desktop AI assistant with local/private chat, shared long-term memory, optional voice, avatars, and delegated work in one interface.
 
-**0.9.2 · Windows 10/11 x64 source preview.** Models, accounts, API credits, personal data and optional avatar SDK binaries are not included. Other operating systems have not been validated.
+**0.10.0 · Windows 10/11 x64 source preview and Apple Silicon/macOS 15+ preview.** Models, accounts, API credits, personal data and optional avatar SDK binaries are not included. The Mac preview is ad-hoc signed rather than Apple notarized; physical audio and desktop behavior still require device acceptance.
 
 ### Quick start
 
@@ -80,6 +86,10 @@ Laurentina Core is a customizable personal desktop AI assistant with local/priva
 
 You can open the interface before installing models; those features remain unavailable until configured. Voice uses optional, separate environments. On constrained hardware, start with basic voice and a smaller chat model.
 
+### Mac quick start
+
+Download the arm64 DMG from Releases and drag Laurentina.app to Applications. It includes Electron, standalone Python and base dependencies. For source installs, use native arm64 Python 3.12 and Node 22+, then run the root Setup.command and Start.command. See [MACOS.md](docs/MACOS.md) for opening the preview, data locations and optional components.
+
 ### Optional components
 
 - **Base voice:** `laurentina-core\SetupVoice.cmd` installs offline ASR/TTS models.
@@ -92,6 +102,6 @@ See [USAGE.md](docs/USAGE.md), [SETUP.md](docs/SETUP.md), [ARCHITECTURE.md](docs
 
 ### Privacy and licensing
 
-No chat history, memory database, credentials, recordings, voice references, imported avatars, model weights, virtual environments or whole third-party repositories are shipped. DPAPI protects saved secrets; local chat and memory databases are not automatically encrypted. Cloud providers receive content explicitly sent to them.
+No chat history, memory database, credentials, recordings, voice references, imported avatars, model weights, virtual environments or whole third-party repositories are shipped in source releases. Windows DPAPI and Mac Keychain protect saved secrets; local chat and memory databases are not automatically encrypted. Cloud providers receive content explicitly sent to them. Mac binary previews contain only the base Python runtime and its installed dependencies, without user data or models.
 
 The original project remains **UNLICENSED** until the author selects a general public-use license. Public source availability does not imply an MIT license. Third-party packages, SDKs and models retain their own terms; see [THIRD_PARTY.md](docs/THIRD_PARTY.md).

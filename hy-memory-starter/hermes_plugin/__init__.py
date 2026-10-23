@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import sqlite3
 import subprocess
+import sys
 import threading
 import time
 from urllib.error import HTTPError
@@ -29,10 +30,13 @@ def read_json(path):
 
 
 class LocalTransport:
-    def __init__(self, workspace):
+    def __init__(self, workspace, python=None, data_dir=None):
         self.workspace = Path(workspace).resolve()
-        self.python = self.workspace / ".venv" / "Scripts" / "python.exe"
-        self.connection = self.workspace / ".local" / "connection.json"
+        if str(self.workspace) not in sys.path:
+            sys.path.insert(0, str(self.workspace))
+        from platform_support import runtime_python, project_data
+        self.python = Path(python) if python else runtime_python("memory", self.workspace)
+        self.connection = (Path(data_dir) if data_dir else project_data("memory", self.workspace)) / "connection.json"
         self.lock = threading.Lock()
 
     def status(self):
@@ -60,7 +64,9 @@ class LocalTransport:
                 env = dict(os.environ)
                 for key in ("PYTHONHOME", "PYTHONPATH", "VIRTUAL_ENV", "__PYVENV_LAUNCHER__"):
                     env.pop(key, None)
-                run = subprocess.run([str(self.python), "-E", "-s", "-X", "utf8", str(self.workspace / "launcher.py"), "--no-browser"],
+                env.update(LAURENTINA_MEMORY_HOME=str(self.workspace), LAURENTINA_MEMORY_PYTHON=str(self.python),
+                           LAURENTINA_MEMORY_DATA=str(self.connection.parent))
+                run = subprocess.run([str(self.python), "-B", "-E", "-s", "-X", "utf8", str(self.workspace / "launcher.py"), "--no-browser"],
                                      cwd=self.workspace, capture_output=True, timeout=25,
                                      env=env,
                                      creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
@@ -113,9 +119,9 @@ class HyMemoryProvider(MemoryProvider):
     def is_available(self):
         try:
             settings = self._settings()
-            root = Path(settings["workspace"])
-            return (root / ".venv" / "Scripts" / "python.exe").is_file() and (root / ".local" / "config.dpapi").is_file()
-        except (OSError, KeyError, ValueError):
+            transport = LocalTransport(settings["workspace"], settings.get("python"), settings.get("data_dir"))
+            return transport.python.is_file() and (transport.connection.parent / "config.dpapi").is_file()
+        except (OSError, KeyError, ValueError, ImportError):
             return False
 
     def unavailable_reason(self):
@@ -128,7 +134,8 @@ class HyMemoryProvider(MemoryProvider):
         self.scope = profile_scope(self.home)
         self.session_id = str(session_id)
         self.agent_context = kwargs.get("agent_context", "primary")
-        self.transport = LocalTransport(self._settings(self.home)["workspace"])
+        settings = self._settings(self.home)
+        self.transport = LocalTransport(settings["workspace"], settings.get("python"), settings.get("data_dir"))
         self.transport.ready()
         directory = self.home / "hymemory-bridge"
         directory.mkdir(parents=True, exist_ok=True)

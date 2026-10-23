@@ -11,6 +11,7 @@ import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
+from core_platform import project_home, project_data, runtime_python, subprocess_options
 
 
 class _NoRedirect(HTTPRedirectHandler):
@@ -29,8 +30,8 @@ class MemoryBridge:
     _start_attempts = {}
 
     def __init__(self, project_root=None, connection_path=None, timeout=180):
-        self.project_root = Path(project_root or Path(__file__).resolve().parent.parent / "hy-memory-starter").resolve()
-        self.connection_path = Path(connection_path or self.project_root / ".local" / "connection.json")
+        self.project_root = Path(project_root).resolve() if project_root else project_home("memory", Path(__file__).resolve().parent.parent / "hy-memory-starter")
+        self.connection_path = Path(connection_path or project_data("memory", self.project_root) / "connection.json")
         self.timeout = timeout
         self.opener = build_opener(ProxyHandler({}), _NoRedirect())
 
@@ -114,7 +115,7 @@ class MemoryBridge:
             now = time.monotonic()
             if now - self._start_attempts.get(key, float("-inf")) < 30:
                 raise RuntimeError("本地记忆服务尚未就绪，请稍后重试或查看服务日志。")
-            python = self.project_root / ".venv" / "Scripts" / "python.exe"
+            python = runtime_python("memory", self.project_root)
             launcher = self.project_root / "launcher.py"
             if not python.is_file() or not launcher.is_file():
                 raise RuntimeError("本地记忆启动环境不完整，请检查 HyMemory 安装。")
@@ -123,7 +124,7 @@ class MemoryBridge:
                 env.pop(name, None)
             self._start_attempts[key] = now
             try:
-                result = subprocess.run([str(python), "-E", "-s", "-X", "utf8", str(launcher), "--no-browser"],
+                result = subprocess.run([str(python), "-B", "-E", "-s", "-X", "utf8", str(launcher), "--no-browser"],
                     cwd=self.project_root, env=env, stdin=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=25,
                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))

@@ -2,27 +2,43 @@
 import json
 import contextvars
 import threading
+import sys
 import uuid
 from pathlib import Path
 from urllib.request import Request, urlopen
 
 
-def workspace():
+def settings():
     from hermes_constants import get_hermes_home
     settings = Path(get_hermes_home()) / "plugins/laurentina_desktop_bridge/sidecar.json"
-    return Path(json.loads(settings.read_text(encoding="utf-8"))["workspace"])
+    return json.loads(settings.read_text(encoding="utf-8"))
+
+
+def workspace():
+    return Path(settings()["workspace"])
+
+
+def storage_directory():
+    config = settings()
+    root = Path(config["workspace"])
+    if config.get("data_dir"):
+        return Path(config["data_dir"])
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    from platform_support import project_data
+    return project_data("memory", root)
 
 
 def available():
     try:
-        return (workspace()/".local/desktop-bridge.dpapi").is_file()
+        return (storage_directory()/"desktop-bridge.dpapi").is_file()
     except (OSError, ValueError, KeyError):
         return False
 
 
 def post(path, payload):
     root = workspace()
-    connection = json.loads((root/".local/connection.json").read_text(encoding="utf-8"))
+    connection = json.loads((storage_directory()/"connection.json").read_text(encoding="utf-8"))
     from urllib.parse import urlsplit
     parsed = urlsplit(connection["url"])
     if parsed.scheme != "http" or parsed.hostname != "127.0.0.1" or not parsed.port or parsed.path:

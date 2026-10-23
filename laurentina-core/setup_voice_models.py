@@ -5,10 +5,13 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import sys
 import time
 from urllib.request import Request, urlopen
+from core_platform import project_home, project_data
 
-ROOT = Path(__file__).resolve().parent / ".local/models"
+HOME = project_home("core", Path(__file__).resolve().parent)
+ROOT = (project_data("core", HOME) if sys.platform == "darwin" else HOME / ".local") / "models"
 LOCK = Path(__file__).resolve().parent / "voice-models-lock.json"
 SOURCES = [
     ("Systran/faster-whisper-base", "", "whisper-base", {"config.json", "model.bin", "tokenizer.json", "vocabulary.json", "vocabulary.txt", "preprocessor_config.json"}),

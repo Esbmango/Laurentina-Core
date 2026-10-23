@@ -29,6 +29,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent
 .illustration-button canvas{display:block;max-width:100%;max-height:100%;pointer-events:none}
 .illustration .orb-widget{padding:0 0 8px}
 .illustration .orb-name{margin-top:5px}
+.illustration .orb-name,.illustration .orb-status,.illustration .orb-controls{transform:translateY(var(--companion-footer-offset,0px))}
 .illustration .orb-controls{background:#0b2031e8}
 .illustration.speaking .illustration-button{filter:drop-shadow(0 0 9px #66c5ff25)}
 .touch-pulse .orb{animation:companion-orb-touch .7s ease-out;transform-origin:50% 50%}

@@ -15,6 +15,8 @@ let renderedArtwork = null;
 let avatarAdapter = null;
 let companionHitSource = null;
 let companionHitTimer = null;
+let companionFooterKey = null;
+let companionFooterOffset = 0;
 let renderVersion = 0;
 let assistantState = { recording: false, speaking: false, thinking: false, level: 0 };
 let mainContext = null;
@@ -347,8 +349,22 @@ function publishCompanionHitRegions() {
   if (document.visibilityState === 'hidden' || !window.innerWidth || !window.innerHeight) return;
   companionHitSource?.sample();
   const illustration = companion.mode === 'avatar' || companion.mode === 'illustration';
+  if (!illustration || companionFooterKey !== renderedArtwork) {
+    companionFooterKey = renderedArtwork; companionFooterOffset = 0;
+    document.documentElement?.style?.setProperty('--companion-footer-offset', '0px');
+  }
   const target = $(illustration ? 'companion-artwork' : 'orb-open');
-  const alpha = illustration ? avatarAdapter?.getHitMask?.() || companionHitSource?.get() || solidCompanionMask(target) : solidCompanionMask(target, true);
+  const visibleMask = illustration ? avatarAdapter?.getHitMask?.() || companionHitSource?.get() : null;
+  if (visibleMask && window.LaurentinaRenderQuality?.footerOffset) {
+    const name = $('orb-name').getBoundingClientRect(), controls = $('orb-hide').getBoundingClientRect();
+    const offset = window.LaurentinaRenderQuality.footerOffset(visibleMask,
+      { top: name.top, bottom: controls.bottom + 4 }, window.innerHeight, companionFooterOffset);
+    if (offset !== null && Math.abs(offset - companionFooterOffset) >= 1) {
+      companionFooterOffset = offset;
+      document.documentElement?.style?.setProperty('--companion-footer-offset', `${offset}px`);
+    }
+  }
+  const alpha = illustration ? visibleMask || solidCompanionMask(target) : solidCompanionMask(target, true);
   const regions = ['orb-main', 'orb-record', 'orb-hide'].map(id => {
     const rect = $(id).getBoundingClientRect(); return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
   });

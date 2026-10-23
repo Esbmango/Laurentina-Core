@@ -176,7 +176,7 @@ def main():
         checks.append("API failures shown as errors, not empty successful searches")
 
         service.close()
-        child = subprocess.run([sys.executable, "-X", "utf8", __file__, "--worker", str(directory / "lite")],
+        child = subprocess.run([sys.executable, "-B", "-X", "utf8", __file__, "--worker", str(directory / "lite")],
                                capture_output=True, text=True, encoding="utf-8", timeout=120)
         assert child.returncode == 0 and "PERSISTENCE_OK" in child.stdout, (child.returncode, child.stdout, child.stderr)
         checks.append("Memory survives a completely new Python process")

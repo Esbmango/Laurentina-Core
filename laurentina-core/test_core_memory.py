@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "hy-memory-starter"))
 import app
 from core_memory import MemoryBridge, _ServiceUnavailable
+from core_platform import runtime_python
 
 
 class FakeClient:
@@ -212,9 +213,10 @@ class MemoryTests(unittest.TestCase):
             patch.dict(os.environ, {"PYTHONHOME": "bad", "PYTHONPATH": "bad", "VIRTUAL_ENV": "bad", "PYTHONINSPECT": "1"}):
             self.assertEqual(self.bridge._status(), (self.url, "ready-token"))
         args, kwargs = run.call_args
-        self.assertEqual(args[0][0], str(self.bridge.project_root / ".venv/Scripts/python.exe"))
+        self.assertEqual(args[0][0], str(runtime_python("memory", self.bridge.project_root)))
         self.assertEqual(args[0][-1], "--no-browser")
         self.assertIn("-E", args[0])
+        self.assertIn("-B", args[0])
         self.assertEqual(kwargs["timeout"], 25)
         self.assertEqual(kwargs["creationflags"], getattr(__import__("subprocess"), "CREATE_NO_WINDOW", 0))
         self.assertFalse({"PYTHONHOME", "PYTHONPATH", "VIRTUAL_ENV", "PYTHONINSPECT"} & set(kwargs["env"]))

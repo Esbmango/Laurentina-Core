@@ -6,6 +6,7 @@ from pathlib import Path
 import queue
 import shutil
 import subprocess
+import sys
 import threading
 import time
 
@@ -16,8 +17,10 @@ class CodexError(RuntimeError):
 
 def find_codex():
     command = shutil.which("codex")
-    if command and Path(command).suffix.lower() == ".exe":
+    if command and (sys.platform != "win32" or Path(command).suffix.lower() == ".exe"):
         return command
+    if sys.platform != "win32":
+        raise CodexError("没有找到已安装的 Codex CLI，请将它加入本机 PATH。")
     base = Path(os.environ.get("LOCALAPPDATA", "")) / "OpenAI" / "Codex" / "bin"
     candidates = list(base.glob("*/codex.exe"))
     if not candidates:

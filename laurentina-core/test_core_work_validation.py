@@ -52,7 +52,7 @@ class WorkValidationTests(unittest.TestCase):
             self.assertEqual(self.bridge._row(receipt["run_id"])["digest"], expected)
             check.assert_not_called()
 
-    def test_checks_start_only_after_completion_and_keep_spec_local(self):
+    def test_checks_start_only_after_completion_and_explicit_contract_reaches_executor(self):
         spec = self.artifacts()
         entered, gate = threading.Event(), threading.Event()
         def slow(*args, **kwargs):
@@ -64,7 +64,10 @@ class WorkValidationTests(unittest.TestCase):
             self.assertEqual(receipt["validation"]["status"], "pending")
             self.assertEqual(receipt["validation"]["phase"], "waiting_for_execution")
             checker.assert_not_called()
-            self.assertNotIn(spec["root"], json.dumps(self.server.posts[0][1]))
+            sent = self.server.posts[0][1]["input"]
+            contract = json.loads(sent.split("<core_artifact_contract>\n", 1)[1].split("\n</core_artifact_contract>", 1)[0])
+            self.assertEqual(contract["artifact_root"], str(Path(spec["root"]).resolve()))
+            self.assertEqual(contract["checks"], normalize_spec(spec)["checks"])
             started = time.monotonic()
             result = self.complete(receipt)
             self.assertLess(time.monotonic() - started, 1)
@@ -118,8 +121,44 @@ class WorkValidationTests(unittest.TestCase):
             self.assertEqual(result["validation_spec"], normalize_spec(spec))
             self.assertEqual(self.verified(receipt["run_id"])["validation"]["status"], "passed")
         self.assertEqual(len(desktop.sends), 1)
-        self.assertEqual(desktop.sends[0][1], "explicit external fixture")
+        self.assertTrue(desktop.sends[0][1].startswith("explicit external fixture"))
+        contract = json.loads(desktop.sends[0][1].split("<core_artifact_contract>\n", 1)[1].split("\n</core_artifact_contract>", 1)[0])
+        self.assertEqual(contract["artifact_root"], str(Path(spec["root"]).resolve()))
+        self.assertEqual(self.bridge._row(receipt["run_id"])["content"], "explicit external fixture")
         self.assertEqual(self.server.posts, [])
+
+    def test_csv_contract_describes_custom_pointers_and_integer_mapping_without_computed_answers(self):
+        spec = self.artifacts()
+        spec["checks"] = [{"kind": "csv_json_totals", "csv": "source.csv", "json": "result.json",
+            "category_column": "group", "amount_column": "minor_units", "row_count_pointer": "/stats/rows",
+            "total_pointer": "/stats/sum", "by_category_pointer": "/stats/groups"}]
+        receipt = self.bridge.start("summarize actual input", validation=spec)
+        sent = self.server.posts[0][1]["input"]
+        contract = json.loads(sent.split("<core_artifact_contract>\n", 1)[1].split("\n</core_artifact_contract>", 1)[0])
+        check = contract["checks"][0]
+        self.assertEqual(check["category_column"], "group")
+        self.assertEqual(check["amount_column"], "minor_units")
+        self.assertEqual(check["json_shape"]["/stats/rows"]["type"], "integer")
+        self.assertEqual(check["json_shape"]["/stats/sum"]["type"], "integer")
+        self.assertEqual(check["json_shape"]["/stats/groups"]["additionalProperties"], {"type": "integer"})
+        self.assertNotIn("equals", check)  # No source was read or fixture answer invented.
+        self.assertEqual(receipt["validation"]["status"], "pending")
+
+    def test_external_contract_changes_do_not_reuse_an_incompatible_old_submission(self):
+        desktop = fixture.FakeDesktop()
+        target = desktop.items[0]
+        spec = self.artifacts()
+        other = {**spec, "checks": [{"kind": "file", "path": "different.md"}]}
+        with patch.object(self.bridge, "_desktop", return_value=desktop), \
+                patch.object(self.bridge, "_desktop_request", side_effect=desktop.request):
+            first = self.bridge.start("same explicit task", target=target, validation=spec)
+            fixture.WorkTests.settled(self, first["run_id"])
+            duplicate = self.bridge.start("same explicit task", target=target, validation=spec)
+            second = self.bridge.start("same explicit task", target=target, validation=other)
+            fixture.WorkTests.settled(self, second["run_id"])
+        self.assertEqual(duplicate["run_id"], first["run_id"])
+        self.assertNotEqual(second["run_id"], first["run_id"])
+        self.assertEqual(len(desktop.sends), 2)
 
     def test_duplicate_clicks_with_same_spec_send_once(self):
         spec = self.artifacts()

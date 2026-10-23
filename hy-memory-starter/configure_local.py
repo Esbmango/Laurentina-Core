@@ -22,8 +22,8 @@ def main():
     home = Path(args.hermes_home).resolve()
     if not (home / "config.yaml").is_file():
         raise ValueError("The selected Hermes profile has no config.yaml")
-    directory = app.ROOT / ".local"
-    directory.mkdir(exist_ok=True)
+    directory = app.DATA
+    directory.mkdir(parents=True, exist_ok=True)
     store = app.ConfigStore(directory)
     current = store.load()
     scope = hashlib.sha256(os.path.normcase(str(home)).encode()).hexdigest()[:32]
@@ -52,7 +52,7 @@ def main():
             raise RuntimeError("The previous local service did not stop")
     store.save(config)
     (directory / "hermes-integration.json").write_text(json.dumps({"scope": scope, "hermes_home": str(home)}, indent=2), encoding="utf-8")
-    subprocess.run([sys.executable, "-X", "utf8", str(app.ROOT / "launcher.py"), "--no-browser"], check=True)
+    subprocess.run([sys.executable, "-B", "-X", "utf8", str(app.ROOT / "launcher.py"), "--no-browser"], check=True)
     print(json.dumps({"configured": "local Qwen + local Qwen Embedding", "scope": scope}), flush=True)
 
 

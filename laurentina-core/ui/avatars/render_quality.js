@@ -68,6 +68,36 @@
     }
     return result;
   }
+  function alphaBounds(mask) {
+    if (!mask || !Number.isInteger(mask.columns) || !Number.isInteger(mask.rows) ||
+        mask.columns < 1 || mask.rows < 1 || mask.columns * mask.rows > 32768 ||
+        ![mask.x, mask.y, mask.width, mask.height].every(Number.isFinite) ||
+        mask.width <= 0 || mask.height <= 0 || typeof mask.bits !== 'string') return null;
+    let bits;
+    try { bits = root.atob(mask.bits); } catch { return null; }
+    if (bits.length !== Math.ceil(mask.columns * mask.rows / 8)) return null;
+    let left = mask.columns, right = -1, top = mask.rows, bottom = -1;
+    for (let row = 0; row < mask.rows; row++) for (let column = 0; column < mask.columns; column++) {
+      const index = row * mask.columns + column;
+      if (!(bits.charCodeAt(index >> 3) & (1 << (index & 7)))) continue;
+      left = Math.min(left, column); right = Math.max(right, column);
+      top = Math.min(top, row); bottom = Math.max(bottom, row);
+    }
+    if (right < 0) return null;
+    return { x: mask.x + left * mask.width / mask.columns, y: mask.y + top * mask.height / mask.rows,
+      width: (right - left + 1) * mask.width / mask.columns,
+      height: (bottom - top + 1) * mask.height / mask.rows };
+  }
+  function footerOffset(mask, footer, viewportHeight, currentOffset = 0) {
+    const visible = alphaBounds(mask);
+    if (!visible || !footer || ![footer.top, footer.bottom, viewportHeight, currentOffset].every(Number.isFinite) ||
+        footer.bottom <= footer.top || viewportHeight <= 0) return null;
+    const height = footer.bottom - footer.top;
+    const top = Math.max(4, Math.min(visible.y + visible.height + 5, viewportHeight - height - 8));
+    // The footer transform must not feed back into the next measurement or
+    // change the canvas size: only the original flow position is the anchor.
+    return Math.round((top - (footer.top - currentOffset)) * 100) / 100;
+  }
   function hitMaskSampler(source, host, options = {}) {
     const columns = 96, rows = 128, sample = root.document.createElement('canvas'); sample.width = columns; sample.height = rows;
     const context = sample.getContext('2d', { willReadFrequently: true }); let cached = null, last = -Infinity, disposed = false;
@@ -97,7 +127,7 @@
       invalidate() { cached = null; last = -Infinity; }, dispose() { disposed = true; cached = null; }
     };
   }
-  const api = Object.freeze({ MAX_PIXELS, zoom, initialZoom, limits, pixelSize, installSpine38Resize, frame, describe, presentationScale, touchAnimation, packAlpha, hitMaskSampler });
+  const api = Object.freeze({ MAX_PIXELS, zoom, initialZoom, limits, pixelSize, installSpine38Resize, frame, describe, presentationScale, touchAnimation, packAlpha, alphaBounds, footerOffset, hitMaskSampler });
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.LaurentinaRenderQuality = api;
 })(typeof window !== "undefined" ? window : globalThis);

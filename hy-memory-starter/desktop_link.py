@@ -4,17 +4,21 @@ import os
 from pathlib import Path
 import hashlib
 import sqlite3
+import shutil
+import sys
 import time
 
 from mcp_stdio import MCPClient
 
-ROOT = Path(__file__).resolve().parent
-CONTEXT = ROOT / ".local/desktop-bridge.dpapi"
+from platform_support import project_home, project_data
+
+ROOT = project_home("memory", Path(__file__).resolve().parent)
+CONTEXT = project_data("memory", ROOT) / "desktop-bridge.dpapi"
 ALLOWED = {"list_threads", "read_thread", "send_message_to_thread", "wait_threads"}
 
 
 def journal():
-    connection = sqlite3.connect(ROOT/".local/desktop-requests.sqlite3", timeout=20)
+    connection = sqlite3.connect(project_data("memory", ROOT)/"desktop-requests.sqlite3", timeout=20)
     connection.row_factory = sqlite3.Row
     connection.execute("CREATE TABLE IF NOT EXISTS requests(id TEXT PRIMARY KEY, thread_id TEXT, digest TEXT, submitted REAL, previous_turn TEXT, state TEXT, receipt TEXT)")
     connection.commit()
@@ -27,7 +31,9 @@ def capture_context():
     servers = list((Path.home()/".codex/plugins/cache/openai-bundled/codex-app-tools").glob("*/server.mjs"))
     if not servers:
         return False
-    node = os.environ.get("CODEX_MCP_NODE_PATH") or str(Path.home()/".cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe")
+    node = os.environ.get("CODEX_MCP_NODE_PATH") or str(Path.home()/".cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin"/("node.exe" if sys.platform == "win32" else "node"))
+    if not Path(node).is_file() and not os.environ.get("CODEX_MCP_NODE_PATH"):
+        node = shutil.which("node") or node
     if not Path(node).is_file():
         return False
     value = {"node": node, "server": str(max(servers, key=lambda item:item.stat().st_mtime)),
@@ -171,6 +177,6 @@ if __name__ == "__main__":
     if not capture_context():
         raise RuntimeError("Run this connection step from the signed-in desktop conversation.")
     listing = call("list_threads", {"limit": 50})
-    (ROOT/".local/desktop-thread-index.json").write_text(json.dumps(listing, ensure_ascii=False, indent=2), encoding="utf-8")
+    (project_data("memory", ROOT)/"desktop-thread-index.json").write_text(json.dumps(listing, ensure_ascii=False, indent=2), encoding="utf-8")
     items = listing.get("threads", [])+listing.get("pinnedThreads", [])
     print(json.dumps({"connected":True,"counts":{kind:sum(item.get("kind")==kind for item in items) for kind in ("codex","chatgpt")}}, ensure_ascii=False))

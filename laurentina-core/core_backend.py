@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-VERSION = "0.9.2"
+VERSION = "0.10.0"
 BASE_URL = "http://127.0.0.1:11434"
 DEFAULT_MODEL = "qwen3.5:9b"
 DEFAULT_CHARACTER = {
@@ -918,6 +918,16 @@ class Core:
             return voice.stop()
         raise ValueError("当前版本不支持这个语音操作。")
 
+    def _sync_work_receipt(self, result):
+        # A work page may be opened before any chat after restart. Reopen only
+        # an existing receipt database; never scan histories or submit a task.
+        with self.lock:
+            if self._tasks is None and (self.data_dir / "chat-tasks.sqlite3").is_file():
+                self.tasks()
+            tasks = self._tasks
+        if tasks is not None and hasattr(tasks, 'sync_run'):
+            tasks.sync_run(result)
+
     def work_action(self, action, payload):
         with self.lock:
             if self._work is None:
@@ -968,8 +978,7 @@ class Core:
         run_id = bounded_text(payload.get("run_id"), "工作编号", 300)
         if action == "work.validate":
             result = work.validate(run_id, payload.get('validation'))
-            if self._tasks is not None and hasattr(self._tasks, 'sync_run'):
-                self._tasks.sync_run(result)
+            self._sync_work_receipt(result)
             return result
         if action == "work.poll":
             after = payload.get("after")
@@ -980,8 +989,7 @@ class Core:
                 lease = self._resource_work.pop(run_id, None)
                 if lease:
                     self.resources().end(lease)
-            if self._tasks is not None and hasattr(self._tasks, 'sync_run'):
-                self._tasks.sync_run(result)
+            self._sync_work_receipt(result)
             return result
         if action == "work.stop":
             return work.stop(run_id)

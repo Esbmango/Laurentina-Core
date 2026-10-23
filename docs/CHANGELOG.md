@@ -1,5 +1,15 @@
 # Changes / 更新
 
+## 0.10.0 — companion layout, real work acceptance and Mac preview
+
+- Companion name, status and controls follow the character's visible lower edge using the existing cached transparency mask. Shrinking no longer leaves a large gap; rendering resolution, animation instances and transparent mouse pass-through are preserved.
+- Explicit work acceptance contracts are sent to Hermes and optional agent adapters. Core continues to validate actual files independently. Existing persistent chat task receipts synchronize when a reopened Core validates/polls a run before opening its chat.
+- A real local Core → Hermes → Qwen workflow generated a checked CSV report using file/terminal tools. Independent arithmetic, a corrupt-output negative test and restart receipt checks passed. Repair was explicitly dispatched; automatic repair, every tool and live approval/cancellation are not implied by this example.
+- Add Apple Silicon/macOS 15+ source setup and preview app building with pinned standalone Python and isolated base dependencies. Mac secrets use native Keychain; Windows DPAPI remains compatible. Application data and optional voice environments stay outside the application bundle.
+- Add Mac window lifecycle, microphone permission descriptions and requests, cross-Space companion behavior, POSIX worker ownership and Mac CI/build smoke checks. Optional voice retains CPU fallback; MPS acceleration and physical microphone/multi-display use still need device testing.
+
+立绘下方操作条随人物可见下沿移动；真实工具工作流已验收并补齐契约传递、重启回执同步；新增 Mac 安装与预览应用构建。Mac 预览使用本地临时签名，尚未进行 Apple Developer ID 公证。
+
 ## 0.9.2 — portable validation fixes
 
 - Normalize Windows long and 8.3 path identities when checking release locations and existing work initialization scripts. Existing equivalent script entries retain their original spelling without duplicate insertion or configuration rewrites.

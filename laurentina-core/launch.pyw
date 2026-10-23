@@ -3,9 +3,10 @@ from pathlib import Path
 import os
 import subprocess
 import sys
+from core_platform import project_home, project_data, runtime_python, subprocess_options
 
-ROOT = Path(__file__).resolve().parent
-DATA = Path(os.environ.get("LAURENTINA_CORE_DATA", ROOT / ".local")).resolve()
+ROOT = project_home("core", Path(__file__).resolve().parent)
+DATA = project_data("core", ROOT)
 DATA.mkdir(parents=True, exist_ok=True)
 
 
@@ -14,20 +15,23 @@ def runtime_paths(root=ROOT, environ=None):
     environ = os.environ if environ is None else environ
     local_app = Path(environ.get("LOCALAPPDATA", Path.home() / "AppData/Local"))
     explicit = environ.get("LAURENTINA_ELECTRON")
-    candidates = ([Path(explicit).expanduser()] if explicit else []) + [
-        root / "node_modules/electron/dist/electron.exe",
-        root / ".runtime/electron/electron.exe",
-        local_app / "hermes/hermes-agent/apps/desktop/node_modules/electron/dist/electron.exe",
-    ]
+    if sys.platform == "darwin":
+        portable = [root / "node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+                    root / ".runtime/electron/Electron.app/Contents/MacOS/Electron"]
+    elif sys.platform == "win32":
+        portable = [root / "node_modules/electron/dist/electron.exe", root / ".runtime/electron/electron.exe",
+                    local_app / "hermes/hermes-agent/apps/desktop/node_modules/electron/dist/electron.exe"]
+    else:
+        portable = [root / "node_modules/electron/dist/electron", root / ".runtime/electron/electron"]
+    candidates = ([Path(explicit).expanduser()] if explicit else []) + portable
     runtime = next((item for item in candidates if item.is_file()), None)
     if explicit and not Path(explicit).expanduser().is_file():
         raise RuntimeError("LAURENTINA_ELECTRON points to a missing file.")
-    python = Path(environ.get("LAURENTINA_CORE_PYTHON") or
-                  root.parent / "hy-memory-starter/.venv/Scripts/python.exe").expanduser()
+    python = runtime_python("core", root, environ=environ)
     if not runtime:
-        raise RuntimeError("Desktop runtime missing. Run Setup.cmd first. / 请先运行 Setup.cmd。")
+        raise RuntimeError("Desktop runtime missing. Run Setup.cmd or Setup.command first. / 请先安装桌面运行环境。")
     if not python.is_file():
-        raise RuntimeError("Python environment missing. Run Setup.cmd first. / 请先运行 Setup.cmd。")
+        raise RuntimeError("Python environment missing. Run Setup.cmd or Setup.command first. / 请先安装 Python 运行环境。")
     return runtime, python
 
 
@@ -36,7 +40,7 @@ def main():
     # normal shortcut never guesses an app connection or reads other accounts.
     if os.environ.get("CODEX_APP_TOOLS_PIPE_PATH") and os.environ.get("CODEX_THREAD_ID"):
         try:
-            sys.path.insert(0, str(ROOT.parent / "hy-memory-starter"))
+            sys.path.insert(0, str(project_home("memory", ROOT.parent / "hy-memory-starter")))
             from desktop_link import capture_context
             capture_context()
         except Exception:
@@ -49,7 +53,7 @@ def main():
     with (DATA / "launch.log").open("ab") as log:
         subprocess.Popen([str(runtime), str(ROOT)], cwd=ROOT, env=env,
                          stdin=subprocess.DEVNULL, stdout=log, stderr=log,
-                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0), close_fds=True)
+                         **subprocess_options(), close_fds=True)
 
 
 if __name__ == "__main__":

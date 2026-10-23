@@ -3,21 +3,24 @@ from concurrent.futures import ThreadPoolExecutor
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
 import urllib.request
 import venv
+from core_platform import project_home, project_data, voice_environment, venv_python
 
-ROOT = Path(__file__).resolve().parent
+ROOT = project_home("core", Path(__file__).resolve().parent)
+DATA = project_data("core", ROOT) if sys.platform == "darwin" else ROOT / ".local"
 MODEL_REPO = "Qwen/Qwen3-TTS-12Hz-0.6B-Base"
 MODEL_REVISION = "5d83992436eae1d760afd27aff78a71d676296fc"
 SOURCE_REPO = "QwenLM/Qwen3-TTS"
 SOURCE_REVISION = "022e286b98fbec7e1e916cb940cdf532cd9f488e"
 ACCELERATOR_REPO = "andimarafioti/faster-qwen3-tts"
 ACCELERATOR_REVISION = "a70afc0f81f7f5f8801c3227968f1102f43f211c"
-MODEL_PATH = ROOT / ".local" / "models" / "qwen3-tts-0.6b-base"
+MODEL_PATH = DATA / "models" / "qwen3-tts-0.6b-base"
 MODEL_FILES = {
     "README.md": (3640, "50931da8c9b34f7233394b5c3063a47ef3285acf"),
     "config.json": (4494, "4e923f500f5c3eeb78d44072e7049b28817c2e04"),
@@ -65,26 +68,33 @@ def fetch_file(item, verify_only=False):
 
 
 def main():
+    # venv's ensurepip child does not inherit the interpreter's -B flag, but
+    # does honor this environment flag. Direct children below also use -B.
+    os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
     parser = argparse.ArgumentParser()
     parser.add_argument("--models-only", action="store_true")
     parser.add_argument("--verify-only", action="store_true")
     args = parser.parse_args()
-    if not args.verify_only and shutil.disk_usage(ROOT).free < 12 * 1024 ** 3:
+    DATA.mkdir(parents=True, exist_ok=True)
+    if not args.verify_only and shutil.disk_usage(DATA).free < 12 * 1024 ** 3:
         raise RuntimeError("At least 12 GB of free disk space is required for the isolated runtime and model")
     if not args.models_only and not args.verify_only:
-        environment = ROOT / ".custom-voice-venv"
-        python = environment / "Scripts" / "python.exe"
+        environment = voice_environment(ROOT, ".custom-voice-venv", data=DATA)
+        python = venv_python(environment)
         if not python.is_file():
             venv.EnvBuilder(with_pip=True).create(environment)
-        subprocess.run([str(python), "-m", "pip", "install", "torch==2.8.0", "torchaudio==2.8.0", "--index-url", "https://download.pytorch.org/whl/cu128"], check=True)
-        subprocess.run([str(python), "-m", "pip", "install", "-r", str(ROOT / "requirements-custom-voice.txt")], check=True)
-        subprocess.run([str(python), "-m", "pip", "install", "--no-deps", "--require-hashes", "-r", str(ROOT / "requirements-custom-voice-runtime.txt")], check=True)
-        freeze = subprocess.run([str(python), "-m", "pip", "freeze"], check=True, capture_output=True, text=True)
-        (ROOT / ".local" / "custom-voice-installed.txt").write_text(freeze.stdout, encoding="utf-8")
+        torch = [str(python), "-B", "-m", "pip", "install", "torch==2.8.0", "torchaudio==2.8.0"]
+        if sys.platform == "win32":
+            torch += ["--index-url", "https://download.pytorch.org/whl/cu128"]
+        subprocess.run(torch, check=True)
+        subprocess.run([str(python), "-B", "-m", "pip", "install", "-r", str(ROOT / "requirements-custom-voice.txt")], check=True)
+        subprocess.run([str(python), "-B", "-m", "pip", "install", "--no-deps", "--require-hashes", "-r", str(ROOT / "requirements-custom-voice-runtime.txt")], check=True)
+        freeze = subprocess.run([str(python), "-B", "-m", "pip", "freeze"], check=True, capture_output=True, text=True)
+        (DATA / "custom-voice-installed.txt").write_text(freeze.stdout, encoding="utf-8")
     with ThreadPoolExecutor(max_workers=3) as pool:
         files = list(pool.map(lambda item: fetch_file(item, args.verify_only), MODEL_FILES.items()))
     if not args.verify_only:
-        license_dir = ROOT / "assets" / "licenses"
+        license_dir = DATA / "licenses" if sys.platform == "darwin" else ROOT / "assets/licenses"
         license_dir.mkdir(parents=True, exist_ok=True)
         url = f"https://raw.githubusercontent.com/{SOURCE_REPO}/{SOURCE_REVISION}/LICENSE"
         with urllib.request.urlopen(url, timeout=30) as response:

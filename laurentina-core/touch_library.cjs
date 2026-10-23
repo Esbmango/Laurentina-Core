@@ -1,5 +1,6 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto'), { spawn } = require('node:child_process');
+const { voiceInterpreter } = require('./desktop_platform.cjs');
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const MAX_ITEMS = 50, MAX_INPUT = 20 * 1024 ** 2, MAX_WAV = 3 * 1024 ** 2, MAX_CONFIG = 512 * 1024;
 const line = value => { if (typeof value !== 'string' || value.length > 300 || value.includes('\0')) throw new Error('触碰台词最多 300 字。'); return value.trim(); };
@@ -91,7 +92,7 @@ class TouchLibrary {
     }
   }
   decode(source, output) {
-    const python = path.join(__dirname, '.voice-venv', 'Scripts', 'python.exe');
+    const python = voiceInterpreter(path.dirname(this.root));
     if (!fs.existsSync(python)) return Promise.reject(new Error('请先安装本地语音环境。'));
     return new Promise((resolve, reject) => {
       const child = spawn(python, ['-E', '-s', '-X', 'utf8', path.join(__dirname, 'touch_audio_import.py'), source, output], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });

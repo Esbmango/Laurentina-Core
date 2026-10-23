@@ -11,6 +11,7 @@ import queue
 import re
 import socket
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -21,6 +22,7 @@ import weakref
 import uuid
 from pathlib import Path
 from core_speech_text import strip_spoken_symbols, target_speech_language
+from core_platform import project_home, venv_python, python_site, voice_environment, subprocess_options, mark_owned, terminate_owned
 
 MAX_AUDIO = 8 * 1024 * 1024
 MAX_OUTPUT = 16 * 1024 * 1024
@@ -141,9 +143,7 @@ class ResidentWorker:
         if process is None:
             return
         try:
-            if process.poll() is None:
-                process.kill()
-            process.wait(timeout=5)
+            terminate_owned(process)
         except (OSError, subprocess.TimeoutExpired):
             pass
         for stream in (process.stdin, process.stdout):
@@ -179,10 +179,11 @@ class ResidentWorker:
             raise VoiceError("本地语音运行环境尚未安装。")
         env = os.environ.copy()
         env.update(HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", HF_DATASETS_OFFLINE="1", TOKENIZERS_PARALLELISM="false")
-        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-        process = subprocess.Popen([str(self.python), "-E", "-s", "-X", "utf8", str(self.script), "--serve", self.action],
+        env["LAURENTINA_OWNED_PARENT_PID"] = str(os.getpid())
+        process = subprocess.Popen([str(self.python), "-B", "-E", "-s", "-X", "utf8", str(self.script), "--serve", self.action],
             cwd=self.root, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-            env=env, creationflags=flags)
+            env=env, **subprocess_options(owned=True))
+        mark_owned(process)
         self.process = process
         self._lifetime["process"] = process
         self._lifetime["job"] = _windows_process_job(process)
@@ -328,14 +329,16 @@ def validated_wav(raw):
 class VoiceBridge:
     def __init__(self, data_dir, root_dir=None, runner=None, opener=None):
         self.data_dir = Path(data_dir).resolve()
-        self.root = Path(root_dir).resolve() if root_dir else Path(__file__).resolve().parent
-        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.root = Path(root_dir).resolve() if root_dir else project_home("core", Path(__file__).resolve().parent)
+        self.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.config_path = self.data_dir / "voice-settings.json"
         self.temp_root = self.data_dir / "voice-temp"
-        self.python = self.root / ".voice-venv" / "Scripts" / "python.exe"
-        self.site = self.root / ".voice-venv" / "Lib" / "site-packages"
-        self.asr_model = self.root / ".local" / "models" / "whisper-base"
-        self.tts_model = self.root / ".local" / "models" / "piper" / (VOICE_ID + ".onnx")
+        environment = voice_environment(self.root, ".voice-venv", data=self.data_dir)
+        self.python = venv_python(environment)
+        self.site = python_site(environment)
+        models = (self.data_dir if sys.platform == "darwin" else self.root / ".local") / "models"
+        self.asr_model = models / "whisper-base"
+        self.tts_model = models / "piper" / (VOICE_ID + ".onnx")
         self.english_model = self.tts_model.with_name(ENGLISH_VOICE + ".onnx")
         self.runner = runner
         self.opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
@@ -489,7 +492,7 @@ class VoiceBridge:
             raise ValueError("录音为空或超过 8 MiB。")
         if self.runner is None and not self.status()["asr_ready"]:
             raise VoiceError("本地语音识别模型或运行环境尚未准备好。")
-        self.temp_root.mkdir(parents=True, exist_ok=True)
+        self.temp_root.mkdir(parents=True, exist_ok=True, mode=0o700)
         with tempfile.TemporaryDirectory(prefix="asr-", dir=self.temp_root) as directory:
             path = Path(directory) / ("recording" + MIMES[mime])
             path.write_bytes(raw)

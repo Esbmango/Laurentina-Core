@@ -1,6 +1,6 @@
 "use strict";
 
-const { app, BrowserWindow, ipcMain, dialog, protocol, session, shell, screen, nativeImage } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, protocol, session, shell, screen, nativeImage, Menu, systemPreferences } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const http = require("node:http");
@@ -12,10 +12,10 @@ const { AvatarLibrary } = require("./avatar_library.cjs");
 const { TouchLibrary } = require('./touch_library.cjs');
 const { CompanionHitTest } = require('./companion_hit_test.cjs');
 const crypto = require('node:crypto');
+const { desktopPaths, backendEnvironment, closeKeepsRunning } = require('./desktop_platform.cjs');
 
 const ROOT = __dirname;
-const DATA = path.resolve(process.env.LAURENTINA_CORE_DATA || path.join(ROOT, ".local"));
-const PYTHON = process.env.LAURENTINA_CORE_PYTHON || path.resolve(ROOT, "../hy-memory-starter/.venv/Scripts/python.exe");
+const { data: DATA, python: PYTHON, avatarRuntimes: AVATAR_RUNTIMES } = desktopPaths({root:ROOT, appData:app.getPath('appData'), resourcesPath:process.resourcesPath});
 const MAIN_URL = "laurentina://app/index.html";
 // A separate origin keeps Chromium's per-origin zoom away from the main panel.
 const ORB_URL = "laurentina://companion/orb.html";
@@ -35,8 +35,8 @@ const API_ACTIONS = new Set([
   "workspace.get", "workspace.preferences.save", "project.create", "project.rename", "project.pin", "conversation.organize",
   "skills.list", "skills.import", "skills.read",
 ]);
-fs.mkdirSync(DATA, { recursive: true });
-fs.mkdirSync(path.join(DATA, "desktop"), { recursive: true });
+fs.mkdirSync(DATA, { recursive: true, mode:0o700 });
+fs.mkdirSync(path.join(DATA, "desktop"), { recursive: true, mode:0o700 });
 const companion = new CompanionStore(DATA);
 const avatars = new AvatarLibrary(DATA);
 const touchLibrary = new TouchLibrary(DATA);
@@ -45,7 +45,7 @@ function touchEvent(value) { for (const target of [window, orbWindow]) if(target
 function endTouch(id,busy=false) { if(pendingTouch!==id)return;clearTimeout(touchTimeout);pendingTouch=null;touchEvent({id,phase:'end',busy});if(currentVoiceState.source==='touch'&&currentVoiceState.touch_id===id){currentVoiceState={...currentVoiceState,source:null,touch_id:null,speaking:false,level:0,text:''};for(const target of [window,orbWindow])if(target&&!target.isDestroyed())target.webContents.send('laurentina:voice-state',currentVoiceState);} }
 app.setName("Laurentina");
 app.setPath("userData", path.join(DATA, "desktop"));
-app.setAppUserModelId("local.laurentina.core");
+if (process.platform === 'win32') app.setAppUserModelId("local.laurentina.core");
 protocol.registerSchemesAsPrivileged([
   { scheme: "laurentina", privileges: { standard: true, secure: true, supportFetchAPI: true } },
   { scheme: "laurentina-avatar", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
@@ -137,9 +137,8 @@ function log(message) {
 
 function startBackend() {
   return new Promise((resolve, reject) => {
-    const env = { ...process.env };
-    for (const key of ["PYTHONHOME", "PYTHONPATH", "VIRTUAL_ENV", "__PYVENV_LAUNCHER__", "ELECTRON_RUN_AS_NODE"]) delete env[key];
-    backend = spawn(PYTHON, ["-E", "-s", "-X", "utf8", path.join(ROOT, "core_backend.py"), "--data-dir", DATA, "--parent-pid", String(process.pid)], {
+    const env = backendEnvironment({ root:ROOT, data:DATA, python:PYTHON });
+    backend = spawn(PYTHON, ["-B", "-E", "-s", "-X", "utf8", path.join(ROOT, "core_backend.py"), "--data-dir", DATA, "--parent-pid", String(process.pid)], {
       cwd: ROOT, env, windowsHide: true, stdio: ["ignore", "pipe", "pipe"],
     });
     let settled = false;
@@ -171,6 +170,19 @@ function startBackend() {
         dialog.showMessageBox(window, { type: "error", title: "本地服务已停止", message: "请重新打开劳纶缇娜。", detail: "已保存的对话仍保存在本机。" });
       }
     });
+  });
+}
+
+function prepareMemoryDefaults() {
+  if (process.platform !== 'darwin') return Promise.resolve();
+  return new Promise(resolve => {
+    const child = spawn(PYTHON, ['-B', '-E', '-s', '-X', 'utf8', path.join(ROOT, 'scripts/configure_local_memory.py'), '--initialize'], {
+      cwd: ROOT, env:backendEnvironment({root:ROOT,data:DATA,python:PYTHON}), stdio:['ignore','ignore','ignore'],
+    });
+    let settled = false;
+    const finish = () => { if (settled) return; settled = true; clearTimeout(timer); resolve(); };
+    const timer = setTimeout(() => { child.kill(); log('memory initialization deferred'); finish(); }, 30000);
+    child.once('error', finish); child.once('exit', code => { if(code)log('memory initialization unavailable');finish(); });
   });
 }
 
@@ -267,6 +279,7 @@ async function showOrb() {
     orbWindow.webContents.send("laurentina:voice-state", currentVoiceState);
   }
   orbWindow.setBounds({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height });
+  if (process.platform === 'darwin') orbWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   orbWindow.webContents.setZoomFactor(bounds.factor);
   orbWindow.setTitle(settings.mode === "orb" ? "Laurentina · 悬浮球" : "Laurentina · 桌宠");
   orbWindow.webContents.send("laurentina:companion-state", settings);
@@ -475,7 +488,8 @@ async function createWindow() {
   window.webContents.on("will-attach-webview", event => event.preventDefault());
   window.webContents.on("render-process-gone", (_, detail) => log(`renderer exited ${detail.reason}`));
   window.once("ready-to-show", () => { window.show(); window.focus(); });
-  window.on("closed", () => { window = null; if (orbWindow && !orbWindow.isDestroyed()) orbWindow.destroy(); app.quit(); });
+  window.on('close', event => { if (closeKeepsRunning() && !quitting) { event.preventDefault(); window.hide(); } });
+  window.on("closed", () => { window = null; if (!closeKeepsRunning()) { if (orbWindow && !orbWindow.isDestroyed()) orbWindow.destroy(); app.quit(); } });
   await window.loadURL(MAIN_URL);
 }
 
@@ -483,9 +497,12 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on("second-instance", () => {
-    if (window) { if (window.isMinimized()) window.restore(); window.show(); window.focus(); }
+    showMain();
   });
   app.whenReady().then(async () => {
+    if (process.platform === 'darwin') Menu.setApplicationMenu(Menu.buildFromTemplate([
+      { role:'appMenu' }, { role:'editMenu' }, { role:'viewMenu' }, { role:'windowMenu' },
+    ]));
     protocol.handle('laurentina-touch',async request=>{try{const url=new URL(request.url);if(request.method!=='GET'||url.host!=='audio'||url.search||url.hash||!/^\/[0-9a-f-]{36}\.wav$/.test(url.pathname))return new Response('',{status:404});return new Response(await fs.promises.readFile(touchLibrary.asset(url.pathname.slice(1,-4))),{headers:{'Content-Type':'audio/wav','Access-Control-Allow-Origin':'*','Cache-Control':'no-store'}});}catch{return new Response('',{status:404})}});
     protocol.handle('laurentina-avatar', async request => {
       try {
@@ -520,6 +537,21 @@ if (!app.requestSingleInstanceLock()) {
         const prefix=path.resolve(ROOT,'ui','avatars')+path.sep;
         const mime={'.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.json':'application/json','.css':'text/css; charset=utf-8','.wasm':'application/wasm'}[path.extname(resolved)];
         if (resolved.startsWith(prefix) && mime) files[url.pathname]=mime;
+        // Optional runtimes in a packaged Mac app live in the writable data
+        // directory, never inside /Applications. Serve only pinned SDK bytes.
+        if (request.method === 'GET' && ownPath.startsWith('avatars/vendor/') && files[url.pathname]) {
+          const name = ownPath.slice('avatars/vendor/'.length);
+          if (/^[a-zA-Z0-9_.-]+$/.test(name)) {
+            const candidate = path.join(AVATAR_RUNTIMES, name);
+            if (fs.existsSync(candidate)) {
+              const lock = JSON.parse(await fs.promises.readFile(path.join(ROOT,'assets/vendor/avatar-runtimes.json'),'utf8'));
+              const expected = lock.runtimes.find(item=>item.file === 'ui/avatars/vendor/'+name);
+              const bytes = await fs.promises.readFile(candidate);
+              if (!expected || crypto.createHash('sha256').update(bytes).digest('hex') !== expected.sha256) return new Response('Invalid runtime',{status:404});
+              return new Response(bytes,{headers:{'Content-Type':mime,'Content-Security-Policy':CSP,'X-Content-Type-Options':'nosniff','Cache-Control':'no-store'}});
+            }
+          }
+        }
       }
       if (request.method !== "GET" || !files[url.pathname]) return new Response("Not found", { status: 404 });
       try {
@@ -528,10 +560,12 @@ if (!app.requestSingleInstanceLock()) {
       } catch { return new Response("Unable to load application", { status: 500 }); }
     });
     const ownContents = contents => [window, orbWindow].some(target => target && !target.isDestroyed() && target.webContents === contents);
-    session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
+    session.defaultSession.setPermissionRequestHandler(async (contents, permission, callback, details) => {
       const allowed = permission === "media" && ownContents(contents) &&
         [MAIN_URL, ORB_URL].includes(contents.getURL()) && (details.mediaTypes || []).every(type => type === "audio");
-      callback(allowed);
+      if (!allowed) { callback(false); return; }
+      try { callback(process.platform !== 'darwin' || await systemPreferences.askForMediaAccess('microphone')); }
+      catch { callback(false); }
     });
     session.defaultSession.setPermissionCheckHandler((contents, permission, origin, details) =>
       permission === "media" && ownContents(contents) && [MAIN_URL, ORB_URL].includes(contents.getURL()) && details.mediaType !== "video");
@@ -539,6 +573,7 @@ if (!app.requestSingleInstanceLock()) {
       callback({ cancel: !details.url.startsWith("laurentina://app/") && !details.url.startsWith("laurentina://companion/") && !details.url.startsWith('laurentina-avatar://') && !details.url.startsWith('laurentina-touch://audio/') && !details.url.startsWith("data:") && !details.url.startsWith("blob:laurentina://app/") && !details.url.startsWith("blob:laurentina://companion/") && details.url !== "about:blank" });
     });
     installIPC();
+    await prepareMemoryDefaults();
     await startBackend();
     await createWindow();
     if (companion.get().visible) await showOrb();
@@ -549,5 +584,6 @@ if (!app.requestSingleInstanceLock()) {
     app.quit();
   });
 }
-app.on("window-all-closed", () => app.quit());
+app.on('activate', () => { if (window && !window.isDestroyed()) showMain(); else if (backendConnection && !quitting) createWindow().catch(() => dialog.showErrorBox('Laurentina', '无法重新打开主面板。')); });
+app.on("window-all-closed", () => { if (!closeKeepsRunning()) app.quit(); });
 app.on("before-quit", () => { quitting = true; endCompanionDrag(); stopCompanionHitTest(); if (backend && !backend.killed) backend.kill(); });

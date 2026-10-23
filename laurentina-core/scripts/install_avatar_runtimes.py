@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 from urllib.request import Request, urlopen
@@ -16,7 +17,7 @@ MAX_DOWNLOAD = 32 * 1024 * 1024
 
 
 def fetch(url):
-    with urlopen(Request(url, headers={"User-Agent": "Laurentina-Optional-SDK-Setup/0.9.2"}), timeout=60) as response:
+    with urlopen(Request(url, headers={"User-Agent": "Laurentina-Optional-SDK-Setup/0.10.0"}), timeout=60) as response:
         data = response.read(MAX_DOWNLOAD + 1)
     if len(data) > MAX_DOWNLOAD:
         raise RuntimeError("SDK download exceeded the size limit")
@@ -29,15 +30,19 @@ def checked(data, digest):
     return data
 
 
-def install(core=CORE, kind="spine"):
+def install(core=CORE, kind="spine", output=None):
     core = Path(core)
+    if output is None and sys.platform == 'darwin':
+        sys.path.insert(0, str(CORE))
+        from core_platform import project_data
+        output = project_data('core', core) / 'avatar-runtimes'
     lock = json.loads((core / "assets/vendor/avatar-runtimes.json").read_text(encoding="utf-8"))
     selected = [item for item in lock["runtimes"] if
                 (kind in ("spine", "all") and "spine-player" in item["file"]) or
                 (kind in ("live2d", "all") and "spine-player" not in item["file"])]
     results = []
     for item in selected:
-        destination = core / item["file"]
+        destination = Path(output) / Path(item['file']).name if output is not None else core / item["file"]
         if destination.is_file() and hashlib.sha256(destination.read_bytes()).hexdigest() == item["sha256"]:
             results.append({"file": item["file"], "status": "already verified"})
             continue
@@ -96,8 +101,9 @@ def install(core=CORE, kind="spine"):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--kind", choices=("spine", "live2d", "all"), required=True)
+    parser.add_argument('--output', type=Path, help='Optional runtime directory; packaged Mac defaults to writable app data')
     args = parser.parse_args()
-    for result in install(kind=args.kind):
+    for result in install(kind=args.kind, output=args.output):
         print(result["status"] + ": " + result["file"])
 
 

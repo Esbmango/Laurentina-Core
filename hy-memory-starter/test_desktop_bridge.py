@@ -1,5 +1,6 @@
 """Delivery/readiness contracts with no external messages or model calls."""
 import json
+import os
 from pathlib import Path
 import tempfile
 import threading
@@ -20,6 +21,9 @@ class DesktopBridgeContracts(unittest.TestCase):
         root = Path(self.temp.name)
         assert root.resolve().is_relative_to(temporary_root.resolve())
         (root/".local").mkdir()
+        self.data_patch = patch.dict(os.environ, {"LAURENTINA_MEMORY_DATA": str(root/".local")})
+        self.data_patch.start()
+        self.addCleanup(self.data_patch.stop)
         self.root_patch = patch.object(bridge, "ROOT", root)
         self.root_patch.start()
         self.addCleanup(self.root_patch.stop)

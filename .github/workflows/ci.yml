@@ -33,3 +33,74 @@ jobs:
       - name: Memory bridge and Windows server isolation
         working-directory: hy-memory-starter
         run: ./.venv/Scripts/python.exe -X utf8 -m unittest test_server_binding test_desktop_bridge -q
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated Mac base dependencies without models
+        id: base
+        run: bash ./laurentina-core/scripts/setup_macos.sh --python "$(command -v python)" --skip-npm --skip-memory-defaults
+      - name: Core and native Keychain tests
+        id: core
+        continue-on-error: true
+        working-directory: laurentina-core
+        env:
+          LAURENTINA_PROVIDER_HTTP_TEST: '1'
+        run: ../hy-memory-starter/.venv/bin/python -X utf8 -m unittest discover -p 'test*.py' -q
+      - name: UI and companion tests
+        id: ui
+        if: always() && steps.base.outcome == 'success'
+        continue-on-error: true
+        working-directory: laurentina-core
+        run: node --test test*.cjs
+      - name: Memory bridge and server isolation
+        id: memory
+        if: always() && steps.base.outcome == 'success'
+        continue-on-error: true
+        working-directory: hy-memory-starter
+        run: ./.venv/bin/python -X utf8 -m unittest test_server_binding test_desktop_bridge -q
+      - name: Install locked Electron runtime
+        id: electron
+        if: always() && steps.base.outcome == 'success'
+        working-directory: laurentina-core
+        run: |
+          npm ci --include=dev --no-audit --no-fund
+          test -x node_modules/electron/dist/Electron.app/Contents/MacOS/Electron || node node_modules/electron/install.js
+      - name: Build Mac app with standalone base Python
+        id: build
+        if: always() && steps.electron.outcome == 'success'
+        continue-on-error: true
+        working-directory: laurentina-core
+        run: ../hy-memory-starter/.venv/bin/python -X utf8 scripts/build_macos.py --output "$RUNNER_TEMP/Laurentina-macOS-arm64"
+      - name: Launch actual bundled app and verify UI, persistence and window lifecycle
+        id: smoke
+        if: always() && steps.build.outcome == 'success'
+        continue-on-error: true
+        working-directory: laurentina-core
+        run: node scripts/smoke_macos.cjs "$RUNNER_TEMP/Laurentina-macOS-arm64/Laurentina.app" "$RUNNER_TEMP/Laurentina-macOS-arm64/smoke-report.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Laurentina-macOS-arm64-preview
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/Laurentina-macOS-arm64/*.zip
+            ${{ runner.temp }}/Laurentina-macOS-arm64/*.dmg
+            ${{ runner.temp }}/Laurentina-macOS-arm64/*report.json
+            ${{ runner.temp }}/Laurentina-macOS-arm64/smoke-report.png
+      - name: Require every Mac check to pass
+        if: always()
+        env:
+          CHECK_OUTCOMES: ${{ steps.base.outcome }} ${{ steps.core.outcome }} ${{ steps.ui.outcome }} ${{ steps.memory.outcome }} ${{ steps.electron.outcome }} ${{ steps.build.outcome }} ${{ steps.smoke.outcome }}
+        run: |
+          for result in $CHECK_OUTCOMES
+          do
+            test "$result" = success || exit 1
+          done

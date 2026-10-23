@@ -26,6 +26,7 @@ Installation does not replace upstream terms or grant rights to character art. U
 | Component | Scope / notice |
 | --- | --- |
 | Electron | MIT; npm-installed distribution and dependency notices |
+| Standalone CPython (Mac app) | Hash-pinned python-build-standalone distribution; CPython license and installed dependency notices retained inside the app |
 | HyMemory / Qdrant client | Declared Python dependencies; licenses in installed distributions |
 | PyYAML | MIT; configuration helpers |
 | faster-whisper / Piper / models | Optional packages and separate downloads; retain each license/model card |

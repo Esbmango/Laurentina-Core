@@ -3,6 +3,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import io
 import json
 import os
+import sys
 from pathlib import Path
 import tempfile
 import threading
@@ -89,6 +90,22 @@ class ProviderTests(unittest.TestCase):
     def setUp(self):
         self.temp = isolated_directory()
         self.addCleanup(self.temp.cleanup)
+        if sys.platform == "darwin":
+            # Still exercise the native Keychain, then remove only the random
+            # accounts created by this test; never leave fixture credentials.
+            from core_platform import _module as platform
+            accounts = []
+            original = platform._Keychain.add
+            def tracked(store, account, data):
+                original(store, account, data)
+                accounts.append(account)
+            def cleanup():
+                for account in accounts:
+                    platform._Keychain().delete(account)
+            self.addCleanup(cleanup)
+            mocked = patch.object(platform._Keychain, "add", tracked)
+            mocked.start()
+            self.addCleanup(mocked.stop)
         self.ollama = OllamaFixture()
         self.bridge = ProviderBridge(self.temp.name, self.ollama)
 

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import argparse
-import ctypes
+import errno
 import hashlib
 import importlib.metadata
 import ipaddress
@@ -19,7 +19,10 @@ from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
-ROOT = Path(__file__).resolve().parent
+from platform_support import project_home, project_data, protect_bytes, SecretStoreError
+
+ROOT = project_home("memory", Path(__file__).resolve().parent)
+DATA = project_data("memory", ROOT)
 APP_ID = "Laurentina-HyMemory-Starter"
 API_VERSION = 2
 USER_ID = "personal"
@@ -30,7 +33,7 @@ DEFAULTS = {
     "dimensions": 1024,
 }
 # Keep every SDK file within this project's private data folder.
-os.environ["MEMORY_DATA_DIR"] = str(ROOT / ".local" / "sdk")
+os.environ["MEMORY_DATA_DIR"] = str(DATA / "sdk")
 os.environ["MEMORY_LOG_LEVEL"] = "ERROR"
 os.environ["MEMORY_LOG_LLM_CONTENT"] = "false"
 os.environ["MEMORY_ENABLE_GRAPH"] = "false"
@@ -44,37 +47,10 @@ class UserError(Exception):
 
 
 def protect(data: bytes, decrypt: bool = False) -> bytes:
-    """Windows DPAPI binds saved keys to the current Windows account."""
-    if os.name != "nt":
-        raise UserError("这个版本使用 Windows 账户加密保存配置，请在 Windows 中运行。")
-
-    class Blob(ctypes.Structure):
-        _fields_ = [("size", ctypes.c_uint32), ("data", ctypes.POINTER(ctypes.c_ubyte))]
-
-    backing = ctypes.create_string_buffer(data)
-    source = Blob(len(data), ctypes.cast(backing, ctypes.POINTER(ctypes.c_ubyte)))
-    target = Blob()
-    crypt = ctypes.WinDLL("crypt32", use_last_error=True)
-    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-    kernel.LocalFree.argtypes = [ctypes.c_void_p]
-    kernel.LocalFree.restype = ctypes.c_void_p
-    if decrypt:
-        method = crypt.CryptUnprotectData
-        method.argtypes = [ctypes.POINTER(Blob), ctypes.c_void_p, ctypes.c_void_p,
-                           ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint32,
-                           ctypes.POINTER(Blob)]
-    else:
-        method = crypt.CryptProtectData
-        method.argtypes = [ctypes.POINTER(Blob), ctypes.c_wchar_p, ctypes.c_void_p,
-                           ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint32,
-                           ctypes.POINTER(Blob)]
-    method.restype = ctypes.c_int
-    if not method(ctypes.byref(source), None, None, None, None, 1, ctypes.byref(target)):
-        raise ctypes.WinError(ctypes.get_last_error())
     try:
-        return ctypes.string_at(target.data, target.size)
-    finally:
-        kernel.LocalFree(target.data)
+        return protect_bytes(data, decrypt=decrypt)
+    except SecretStoreError as exc:
+        raise UserError(str(exc)) from None
 
 
 class ConfigStore:
@@ -89,10 +65,10 @@ class ConfigStore:
             saved = json.loads(protect(self.path.read_bytes(), decrypt=True))
             return {**DEFAULTS, **saved}
         except Exception as exc:
-            raise UserError("配置无法解密，请使用保存配置时的 Windows 账户。原文件已保留。") from exc
+            raise UserError("配置无法解密，请在保存时的本机账户中解锁安全存储。原文件已保留。") from exc
 
     def save(self, config):
-        self.directory.mkdir(parents=True, exist_ok=True)
+        self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         encrypted = protect(json.dumps(config, ensure_ascii=False).encode("utf-8"))
         temporary = self.path.with_suffix(".tmp")
         temporary.write_bytes(encrypted)
@@ -237,7 +213,7 @@ class MemoryService:
             from hy_memory import HyMemoryClient
             config = self.config
             data = self.directory / "m" / profile_id(config)
-            data.mkdir(parents=True, exist_ok=True)
+            data.mkdir(parents=True, exist_ok=True, mode=0o700)
             self.client = HyMemoryClient.from_config({
                 "mode": config["mode"], "enable_graph": False, "metrics_enabled": False,
                 "llm": {"provider": "openai", "base_url": config["llm_url"] or config["embed_url"],
@@ -309,7 +285,7 @@ class AppServer(ThreadingHTTPServer):
         if active_scope:
             self.service.default_user_id = active_scope
         self.scope_lock = threading.RLock()
-        service.directory.mkdir(parents=True, exist_ok=True)
+        service.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.writes = sqlite3.connect(service.directory / "hermes-writes.db", check_same_thread=False)
         self.writes.execute("CREATE TABLE IF NOT EXISTS writes(scope TEXT, turn_id TEXT, result TEXT, PRIMARY KEY(scope,turn_id))")
         self.writes.execute("CREATE TABLE IF NOT EXISTS core_memory_meta(scope TEXT, memory_id TEXT, source TEXT, category TEXT, PRIMARY KEY(scope,memory_id))")
@@ -641,8 +617,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
-    directory = ROOT / ".local"
-    directory.mkdir(exist_ok=True)
+    directory = DATA
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     integration = directory / "hermes-integration.json"
     active_scope = ""
     if integration.exists():
@@ -656,7 +632,7 @@ def main():
             server = AppServer(("127.0.0.1", port), service, active_scope)
             break
         except OSError as exc:
-            if getattr(exc, "winerror", None) not in (10048, 10013) and exc.errno not in (98, 10048, 10013):
+            if getattr(exc, "winerror", None) not in (10048, 10013) and exc.errno not in (errno.EADDRINUSE, errno.EACCES, 10048, 10013):
                 raise
     if server is None:
         raise RuntimeError("No available local port between 8765 and 8774.")

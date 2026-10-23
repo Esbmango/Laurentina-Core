@@ -6,14 +6,16 @@ import json
 from pathlib import Path
 import re
 import shutil
+import stat
 import tempfile
 import zipfile
 
 CORE = Path(__file__).resolve().parent.parent
 BLOCKED = {".local", ".runtime", ".venv", ".voice-venv", ".custom-voice-venv", "node_modules", "__pycache__", ".git", "sources"}
-TEXT = {".py", ".pyw", ".cjs", ".js", ".json", ".md", ".txt", ".html", ".css", ".cmd", ".ps1", ".yaml", ".yml", ".svg", ".example"}
+TEXT = {".py", ".pyw", ".cjs", ".js", ".json", ".md", ".txt", ".html", ".css", ".cmd", ".command", ".sh", ".plist", ".ps1", ".yaml", ".yml", ".svg", ".example"}
 PRIVATE = [
     ("personal absolute path", re.compile(r"[A-Za-z]:[\\/]+Users[\\/]+(?!<|YOUR_|your-)[^\s\"'<>]+", re.I)),
+    ("personal Mac home path", re.compile(r"/Users/(?!YOUR_|your-)[A-Za-z0-9_.-]+(?:/|$)", re.I)),
     ("synced project identity", re.compile(r"g-p-[a-f0-9]{20,}", re.I)),
     ("credential-shaped token", re.compile(r"\b(?:sk-(?:proj-)?[A-Za-z0-9_-]{24,}|gh[pousr]_[A-Za-z0-9]{24,}|github_pat_[A-Za-z0-9_]{30,})\b")),
     ("private key", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")),
@@ -98,7 +100,15 @@ def build(output, core=CORE, create_zip=True):
             with zipfile.ZipFile(archive_path, "x", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
                 for source in sorted(output.rglob("*")):
                     if source.is_file():
-                        archive.write(source, Path(output.name) / source.relative_to(output))
+                        member = Path(output.name) / source.relative_to(output)
+                        if source.suffix in ('.command', '.sh'):
+                            info = zipfile.ZipInfo.from_file(source, member.as_posix())
+                            info.create_system = 3
+                            info.external_attr = (stat.S_IFREG | 0o755) << 16
+                            info.compress_type = zipfile.ZIP_DEFLATED
+                            archive.writestr(info, source.read_bytes())
+                        else:
+                            archive.write(source, member)
         return {"directory": str(output), "archive": str(archive_path) if archive_path else None,
                 "version": version, "files": len(entries), "bytes": sum(item["bytes"] for item in entries)}
     except BaseException:

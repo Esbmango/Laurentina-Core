@@ -4,6 +4,7 @@ import importlib.machinery
 import importlib.util
 import json
 import os
+import sys
 from pathlib import Path
 import tempfile
 import types
@@ -45,9 +46,10 @@ class ReleaseToolsTest(unittest.TestCase):
         (core / "README.md").write_text("public readme")
         (core / "docs/HYMEMORY.md").write_text("public memory docs")
         (core / "core_safe.py").write_text("print('public')")
+        (core / "Setup.command").write_text("#!/bin/sh\nprintf setup\\n\n")
         (core / ".local").mkdir()
         (core / ".local/secret.txt").write_text("must never ship")
-        manifest = {"core": ["core_*.py", "package.json", "README.md", "docs/*.md"], "memory": [],
+        manifest = {"core": ["core_*.py", "package.json", "README.md", "docs/*.md", "*.command"], "memory": [],
                     "root_files": {"README.md": "README.md"}, "excluded": ["private data"]}
         (core / "scripts/release_manifest.json").write_text(json.dumps(manifest))
         (core / ".gitignore").write_text(".local/\n")
@@ -65,6 +67,13 @@ class ReleaseToolsTest(unittest.TestCase):
             self.assertNotIn("DELIVERY", relative)
         self.assertIn("laurentina-core/assets/vendor/avatar-runtimes.json", files)
 
+    def test_actual_mac_launchers_have_unix_line_endings(self):
+        files, _ = PACK.collect(ROOT)
+        launchers = [source for relative, source in files.items() if Path(relative).suffix in ('.command', '.sh')]
+        self.assertGreaterEqual(len(launchers), 6)
+        for source in launchers:
+            self.assertNotIn(b'\r\n', source.read_bytes(), source.name)
+
     def test_staging_is_independent_hashed_and_refuses_overwrite(self):
         core = self.fixture()
         target = self.base / "release/Laurentina-Core-v0.9.1-source"
@@ -81,6 +90,9 @@ class ReleaseToolsTest(unittest.TestCase):
         self.assertEqual((target / "hy-memory-starter/README.md").read_text(), "public memory docs")
         with zipfile.ZipFile(result["archive"]) as archive:
             self.assertTrue(all(name.startswith(target.name + "/") for name in archive.namelist()))
+            launcher = archive.getinfo(target.name + "/core/Setup.command")
+            self.assertEqual(launcher.create_system, 3)
+            self.assertEqual((launcher.external_attr >> 16) & 0o777, 0o755)
         with self.assertRaises(ValueError):
             PACK.build(target, core)
         with self.assertRaises(ValueError):
@@ -147,7 +159,8 @@ class ReleaseToolsTest(unittest.TestCase):
         with mock.patch.dict(os.environ, {"LAURENTINA_CORE_DATA": str(self.base / "data")}):
             launcher = module("portable_launcher", ROOT / "launch.pyw")
         core = self.base / "core"
-        binary = core / "node_modules/electron/dist/electron.exe"
+        relative = "Electron.app/Contents/MacOS/Electron" if sys.platform == "darwin" else "electron.exe" if sys.platform == "win32" else "electron"
+        binary = core / "node_modules/electron/dist" / relative
         binary.parent.mkdir(parents=True)
         binary.write_bytes(b"test")
         python = self.base / "custom/python.exe"

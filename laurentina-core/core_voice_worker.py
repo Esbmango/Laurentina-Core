@@ -209,6 +209,20 @@ def handle(payload):
 
 
 def main():
+    if os.name != "nt" and os.environ.get("LAURENTINA_OWNED_PARENT_PID"):
+        import signal
+        import threading
+        import time
+        try:
+            parent = int(os.environ["LAURENTINA_OWNED_PARENT_PID"])
+        except ValueError:
+            parent = 0
+        if parent > 1 and os.getpgrp() == os.getpid():
+            def watch_parent():
+                while os.getppid() == parent:
+                    time.sleep(.5)
+                os.killpg(os.getpgrp(), signal.SIGKILL)
+            threading.Thread(target=watch_parent, daemon=True).start()
     os.environ.update(HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", HF_DATASETS_OFFLINE="1", TOKENIZERS_PARALLELISM="false")
     limit = 12 * 1024 * 1024
     if "--serve" in sys.argv:

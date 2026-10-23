@@ -12,6 +12,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import urllib.request
@@ -49,7 +50,7 @@ def _local_json(path, payload=None):
 def _ram_snapshot():
     unavailable = {"available": False, "total_bytes": None, "available_bytes": None, "used_percent": None}
     try:
-        if os.name == "nt":
+        if sys.platform == "win32":
             import ctypes
             class MemoryStatus(ctypes.Structure):
                 _fields_ = [("length", ctypes.c_ulong), ("load", ctypes.c_ulong)] + [
@@ -59,6 +60,18 @@ def _ram_snapshot():
             if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(value)):
                 return unavailable
             total, free = value.total, value.free
+        elif sys.platform == "darwin":
+            # Unified memory is system RAM, not a separately measurable NVIDIA
+            # VRAM pool. vm_stat is an estimate, cached by ResourceManager.
+            flags = {"capture_output": True, "text": True, "timeout": 2, "check": True}
+            total = int(subprocess.run(["/usr/sbin/sysctl", "-n", "hw.memsize"], **flags).stdout.strip())
+            output = subprocess.run(["/usr/bin/vm_stat"], **flags).stdout
+            size = re.search(r"page size of (\d+) bytes", output)
+            if not size or total <= 0:
+                return unavailable
+            values = {key.strip(): int(count) for key, count in re.findall(r"^([^:\n]+):\s*(\d+)\.", output, re.M)}
+            free = sum(values.get(key, 0) for key in ("Pages free", "Pages inactive", "Pages speculative")) * int(size[1])
+            free = min(total, free)
         else:
             values = {}
             for line in Path("/proc/meminfo").read_text(encoding="ascii").splitlines():
@@ -66,8 +79,9 @@ def _ram_snapshot():
                 values[key] = int(value.strip().split()[0]) * 1024
             total, free = values["MemTotal"], values["MemAvailable"]
         return {"available": True, "total_bytes": total, "available_bytes": free,
-                "used_percent": round(100 * (1 - free / total), 1)}
-    except (OSError, ValueError, KeyError, AttributeError):
+                "used_percent": round(100 * (1 - free / total), 1),
+                **({"estimated": True, "unified_memory": True} if sys.platform == "darwin" else {})}
+    except (OSError, ValueError, KeyError, AttributeError, subprocess.SubprocessError):
         return unavailable
 
 

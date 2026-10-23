@@ -25,7 +25,7 @@ const actions = new Set([
 ]);
 
 contextBridge.exposeInMainWorld("laurentina", Object.freeze({
-  version: "0.9.2",
+  version: "0.10.0",
   onTouchRequest(callback) { if(typeof callback!=='function')return ()=>{};const handler=(_,payload)=>callback(payload);ipcRenderer.on('laurentina:touch-request',handler);return ()=>ipcRenderer.removeListener('laurentina:touch-request',handler); },
   onTouchResponse(callback) { if(typeof callback!=='function')return ()=>{};const handler=(_,payload)=>callback(payload);ipcRenderer.on('laurentina:touch-response',handler);return ()=>ipcRenderer.removeListener('laurentina:touch-response',handler); },
   request(action, payload = {}) {

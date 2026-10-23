@@ -9,12 +9,14 @@ import time
 from urllib.request import urlopen
 import webbrowser
 
-ROOT = Path(__file__).resolve().parent
+from platform_support import project_home, project_data, runtime_python, subprocess_options
+
+ROOT = project_home("memory", Path(__file__).resolve().parent)
 
 
 def existing_url():
     try:
-        connection = json.loads((ROOT / ".local" / "connection.json").read_text(encoding="utf-8"))
+        connection = json.loads((project_data("memory", ROOT) / "connection.json").read_text(encoding="utf-8"))
         url = connection["url"]
         if not url.startswith("http://127.0.0.1:"):
             return None
@@ -33,16 +35,16 @@ def main():
     args = parser.parse_args()
     url = existing_url()
     if not url:
-        directory = ROOT / ".local"
-        directory.mkdir(exist_ok=True)
+        directory = project_data("memory", ROOT)
+        directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         env = dict(os.environ)
         for key in ("PYTHONHOME", "PYTHONPATH", "VIRTUAL_ENV", "__PYVENV_LAUNCHER__"):
             env.pop(key, None)
         with (directory / "server.log").open("ab") as log:
-            process = subprocess.Popen([sys.executable, "-E", "-s", "-X", "utf8", str(ROOT / "app.py")], cwd=ROOT,
+            process = subprocess.Popen([sys.executable, "-B", "-E", "-s", "-X", "utf8", str(ROOT / "app.py")], cwd=ROOT,
                                        env=env,
                                        stdout=log, stderr=log,
-                                       creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
+                                       **subprocess_options())
         for _ in range(80):
             time.sleep(0.15)
             url = existing_url()
