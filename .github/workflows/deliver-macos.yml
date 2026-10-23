@@ -1,0 +1,42 @@
+name: Deliver macOS v0.10.0
+
+on:
+  push:
+    branches:
+      - delivery/macos-v0.10.0
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  deliver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out delivery branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check delivery verifier
+        run: python -B .github/scripts/test_deliver_macos.py
+
+      - name: Download verified macOS preview artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Laurentina-macOS-arm64-preview
+          run-id: 39987100186
+          repository: Esbmango/Laurentina-Core
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifacts
+
+      - name: Verify and publish macOS delivery
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/deliver_macos.py --directory artifacts --publish
