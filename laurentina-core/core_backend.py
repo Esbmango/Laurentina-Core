@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-VERSION = "0.9.1"
+VERSION = "0.9.2"
 BASE_URL = "http://127.0.0.1:11434"
 DEFAULT_MODEL = "qwen3.5:9b"
 DEFAULT_CHARACTER = {

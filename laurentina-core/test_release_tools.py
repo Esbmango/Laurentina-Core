@@ -71,7 +71,7 @@ class ReleaseToolsTest(unittest.TestCase):
         before = (core / "core_safe.py").read_bytes()
         result = PACK.build(target, core)
         self.assertEqual(result["version"], "0.9.1")
-        self.assertEqual(result["archive"], str(target) + ".zip")
+        self.assertEqual(Path(result["archive"]).resolve(), Path(str(target) + ".zip").resolve())
         manifest = json.loads((target / "RELEASE-MANIFEST.json").read_text())
         for entry in manifest["files"]:
             payload = (target / entry["path"]).read_bytes()

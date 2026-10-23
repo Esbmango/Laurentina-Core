@@ -4,8 +4,7 @@ import threading
 import time
 import unittest
 
-from core_backend import Core
-from test_core_backend import wait_until
+from test_core_backend import offline_core, wait_until
 import test_core_privacy as privacy
 
 
@@ -24,7 +23,7 @@ class ConversationModeTests(unittest.TestCase):
         if self.core._tasks is not None:
             self.core._tasks.close()
         self.core.db.close()
-        self.core = Core(self.directory.name, memory=self.memory, ollama=self.local,
+        self.core = offline_core(self.directory.name, memory=self.memory, ollama=self.local,
                          providers=self.providers, work=self.work)
 
     def test_switch_keeps_identity_and_persists_exact_timeline_positions(self):

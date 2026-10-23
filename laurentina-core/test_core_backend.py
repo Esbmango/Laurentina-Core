@@ -9,8 +9,10 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from core_backend import Core, CoreHTTP, Job, NoRedirect, Ollama, VisibleText
+from core_resources import ResourceManager
 
 TEST_ROOT = Path(__file__).resolve().parent / ".local" / "test-work"
 TEST_ROOT.mkdir(parents=True, exist_ok=True)
@@ -54,6 +56,7 @@ class Model:
         self.facts = []
         self.prompts = []
         self.started = threading.Event()
+        self.finished = threading.Event()
         self.release = threading.Event()
         self.slow = False
         self.fail = False
@@ -63,14 +66,17 @@ class Model:
 
     def stream(self, model, messages, job):
         self.prompts.append(messages)
-        yield "你好"
-        self.started.set()
-        if self.slow:
-            self.release.wait(3)
-        if self.fail:
-            raise OSError("upstream contains secret request body")
-        if not job.cancelled.is_set():
-            yield "，我在。"
+        try:
+            yield "你好"
+            self.started.set()
+            if self.slow:
+                self.release.wait(3)
+            if self.fail:
+                raise OSError("upstream contains secret request body")
+            if not job.cancelled.is_set():
+                yield "，我在。"
+        finally:
+            self.finished.set()
 
     def extract(self, model, text):
         return self.facts
@@ -85,11 +91,25 @@ def wait_until(predicate, seconds=3):
     raise AssertionError("condition timed out")
 
 
+def offline_core(*args, **kwargs):
+    """Keep real admission/leases while isolating all system/model telemetry.
+
+    A fake chat model alone does not make Core offline: admission runs before
+    its stream and the default snapshot probes nvidia-smi and Ollama /api/ps.
+    Every fresh/reopened Core in these routing tests needs the same boundary.
+    """
+    core = Core(*args, **kwargs)
+    core._resources = ResourceManager(core.data_dir, snapshotter=lambda: {
+        "ram": {"available": True, "total_bytes": 16 * 1024**3, "available_bytes": 8 * 1024**3},
+        "gpus": [], "ollama": {"available": False, "models": []}})
+    return core
+
+
 class CoreTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="backend-", dir=TEST_ROOT)
         self.memory, self.model = Memory(), Model()
-        self.core = Core(self.temp.name, memory=self.memory, ollama=self.model)
+        self.core = offline_core(self.temp.name, memory=self.memory, ollama=self.model)
 
     def tearDown(self):
         self.model.release.set()
@@ -101,6 +121,42 @@ class CoreTests(unittest.TestCase):
 
     def conversation(self, mode="daily"):
         return self.core.dispatch("conversation.create", {"mode": mode})
+
+    def test_offline_chat_admission_keeps_real_policy_without_system_or_network_probes(self):
+        manager = self.core.resources()
+        self.assertIsInstance(manager, ResourceManager)
+        with patch("core_resources.hardware_snapshot") as hardware, \
+                patch("core_resources._local_json") as ollama, \
+                patch("core_resources.subprocess.run") as external_process:
+            for mode in ("daily", "private"):
+                job = self.send(self.conversation(mode), "你好")
+                self.assertEqual(job.final_message["status"], "completed")
+                self.assertEqual(manager.leases, {})
+            hardware.assert_not_called()
+            ollama.assert_not_called()
+            external_process.assert_not_called()
+
+    def test_fake_model_entry_waits_for_capacity_snapshot_before_stream(self):
+        # Reproduce the CI boundary deterministically, without actual telemetry:
+        # the stream's entered event cannot fire until admission has returned.
+        entered, release = threading.Event(), threading.Event()
+        manager = self.core.resources()
+        snapshot = manager.snapshotter()
+
+        def blocked_snapshot():
+            entered.set()
+            release.wait(2)
+            return snapshot
+
+        manager.snapshotter = blocked_snapshot
+        sent = self.core.dispatch("chat.send", {"conversation_id": self.conversation()["id"], "content": "你好"})
+        try:
+            self.assertTrue(entered.wait(1), "fixture did not reach capacity admission")
+            self.assertFalse(self.model.started.is_set())
+        finally:
+            release.set()
+        self.assertTrue(self.model.started.wait(1), "fixture model did not enter after admission released")
+        wait_until(lambda: self.core.job(sent["job_id"]).done)
 
     def send(self, conversation, text):
         result = self.core.dispatch("chat.send", {"conversation_id": conversation["id"], "content": text})
@@ -263,8 +319,8 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(messages[-1]["content"], "你好")
         self.assertEqual(messages[-1]["status"], "cancelled")
         self.model.release.set()
-        time.sleep(0.03)
-        another = Core(self.temp.name, memory=self.memory, ollama=self.model)
+        self.assertTrue(self.model.finished.wait(1), "cancelled fixture stream did not release")
+        another = offline_core(self.temp.name, memory=self.memory, ollama=self.model)
         try:
             persisted = another.messages(conversation["id"])
             self.assertEqual(persisted, messages)
@@ -358,7 +414,7 @@ class WireTests(unittest.TestCase):
 
     def test_http_requires_token_exact_host_origin_and_json(self):
         with tempfile.TemporaryDirectory(prefix="http-", dir=TEST_ROOT) as directory:
-            core = Core(directory, memory=Memory(), ollama=Model())
+            core = offline_core(directory, memory=Memory(), ollama=Model())
             server = CoreHTTP(core, token="test-token")
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()

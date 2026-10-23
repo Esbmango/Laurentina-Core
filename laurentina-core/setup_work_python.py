@@ -16,6 +16,15 @@ from install_work_source import _put
 ROOT = Path(__file__).resolve().parent
 
 
+def _same_init_path(value, expected):
+    """Recognize native absolute aliases without changing user-written paths."""
+    try:
+        candidate = Path(value).expanduser()
+        return candidate.is_absolute() and candidate.resolve() == expected.resolve()
+    except (OSError, RuntimeError, ValueError):
+        return False
+
+
 def install(home, data_dir, python):
     home, data_dir, python = Path(home).resolve(), Path(data_dir).resolve(), Path(python).resolve()
     if not python.is_file() or python.name.lower() != "python.exe":
@@ -32,7 +41,7 @@ def install(home, data_dir, python):
     bin_dir = directory / "bin"
     init = directory / "python-env.sh"
     files = list(existing)
-    if str(init) not in files:
+    if not any(_same_init_path(value, init) for value in files):
         files.append(str(init))
     expected = deepcopy(before)
     expected["terminal"]["shell_init_files"] = files

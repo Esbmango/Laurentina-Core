@@ -1,5 +1,13 @@
 # Changes / 更新
 
+## 0.9.2 — portable validation fixes
+
+- Normalize Windows long and 8.3 path identities when checking release locations and existing work initialization scripts. Existing equivalent script entries retain their original spelling without duplicate insertion or configuration rewrites.
+- Isolate conversation tests from real GPU and Ollama metadata probes while preserving actual resource admission, cancellation and privacy assertions. Synchronization deadlines are unchanged.
+- Add regression coverage for Windows path aliases and offline test execution.
+
+修正 Windows 长短路径兼容及工作环境重复配置；聊天测试不再依赖开发机的显卡或 Ollama 状态。保留 0.9.1 的图标、跨语言声线、完整触碰动画与内存调度优化。
+
 ## 0.9.1 — source preview
 
 - The sidebar uses the isolated navy L with a lighter wordmark. The Windows desktop icon retains a warm-white rounded app tile, with transparent outer corners and no surrounding gray margin.

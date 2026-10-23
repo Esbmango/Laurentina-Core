@@ -6,7 +6,7 @@
 
 可自定义形象、声音和长期记忆的个人桌面 AI 助手，把日常聊天、本地私聊、共享记忆和工作任务集中在一个界面里。
 
-**0.9.1 · Windows 10/11 x64 源码预览版。** 其他系统尚未完成适配；仓库不附带模型、个人数据、账号或 API 额度。
+**0.9.2 · Windows 10/11 x64 源码预览版。** 其他系统尚未完成适配；仓库不附带模型、个人数据、账号或 API 额度。
 
 ## 功能
 
@@ -62,7 +62,7 @@
 
 Laurentina Core is a customizable personal desktop AI assistant with local/private chat, shared long-term memory, optional voice, avatars, and delegated work in one interface.
 
-**0.9.1 · Windows 10/11 x64 source preview.** Models, accounts, API credits, personal data and optional avatar SDK binaries are not included. Other operating systems have not been validated.
+**0.9.2 · Windows 10/11 x64 source preview.** Models, accounts, API credits, personal data and optional avatar SDK binaries are not included. Other operating systems have not been validated.
 
 ### Quick start
 

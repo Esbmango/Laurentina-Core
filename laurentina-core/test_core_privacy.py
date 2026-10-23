@@ -6,8 +6,8 @@ import time
 import unittest
 from pathlib import Path
 
-from core_backend import Core, Job, secret_request
-from test_core_backend import Memory, Model, TEST_ROOT, wait_until
+from core_backend import Job, secret_request
+from test_core_backend import Memory, Model, TEST_ROOT, offline_core, wait_until
 
 
 class Local(Model):
@@ -51,7 +51,7 @@ class PrivacyTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory(prefix="privacy-", dir=TEST_ROOT)
         self.memory, self.local, self.providers, self.work = Memory(), Local(), Providers(), Work()
-        self.core = Core(self.directory.name, memory=self.memory, ollama=self.local, providers=self.providers, work=self.work)
+        self.core = offline_core(self.directory.name, memory=self.memory, ollama=self.local, providers=self.providers, work=self.work)
 
     def tearDown(self):
         self.core.shutdown()
@@ -246,7 +246,7 @@ class PrivacyTests(unittest.TestCase):
         conversation = self.conversation()
         self.send(conversation, "只存私密：RESTART_CANARY")
         pending = self.pending(conversation)
-        reopened = Core(self.directory.name, memory=self.memory, ollama=self.local, providers=self.providers)
+        reopened = offline_core(self.directory.name, memory=self.memory, ollama=self.local, providers=self.providers)
         try:
             self.assertIsNone(reopened.pending_secret(conversation["id"]))
             with self.assertRaises(ValueError):
@@ -331,7 +331,7 @@ class PrivacyTests(unittest.TestCase):
         conversation = self.conversation()
         self.send(conversation, "只存私密：" + "超长" * 2100)
         collecting = self.pending(conversation)
-        reopened = Core(self.directory.name, memory=self.memory, ollama=self.local, providers=self.providers)
+        reopened = offline_core(self.directory.name, memory=self.memory, ollama=self.local, providers=self.providers)
         try:
             self.assertIsNone(reopened.pending_secret(conversation["id"]))
             with self.assertRaises(ValueError):
@@ -455,7 +455,7 @@ class PrivacyTests(unittest.TestCase):
             for index, (role, content) in enumerate((('user', '公开的开场'), ('assistant', '公开回复'), ('user', '“这是我的隐私：LEGACY_CANARY”'), ('assistant', 'PRIVATE_REPLY_CANARY'), ('user', '追加说明'))):
                 self.core.db.execute("INSERT INTO messages VALUES (?,?,?,?,?,?)", (f'old{index}', conversation['id'], role, content, f'old-{index}', 'completed'))
             self.core.db.commit()
-        reopened = Core(self.directory.name, memory=self.memory, ollama=self.local, providers=self.providers)
+        reopened = offline_core(self.directory.name, memory=self.memory, ollama=self.local, providers=self.providers)
         try:
             prompt = json.dumps(reopened.prompt(conversation, "公开问题"), ensure_ascii=False)
             self.assertIn("公开的开场", prompt)

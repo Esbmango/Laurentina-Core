@@ -16,7 +16,7 @@ MAX_DOWNLOAD = 32 * 1024 * 1024
 
 
 def fetch(url):
-    with urlopen(Request(url, headers={"User-Agent": "Laurentina-Optional-SDK-Setup/0.9.1"}), timeout=60) as response:
+    with urlopen(Request(url, headers={"User-Agent": "Laurentina-Optional-SDK-Setup/0.9.2"}), timeout=60) as response:
         data = response.read(MAX_DOWNLOAD + 1)
     if len(data) > MAX_DOWNLOAD:
         raise RuntimeError("SDK download exceeded the size limit")

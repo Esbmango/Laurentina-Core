@@ -4,7 +4,7 @@ The allowlist builder never uploads or reads runtime configuration and databases
 
 ```powershell
 ..\hy-memory-starter\.venv\Scripts\python.exe -E -s -X utf8 scripts\pack_release.py --list
-..\hy-memory-starter\.venv\Scripts\python.exe -E -s -X utf8 scripts\pack_release.py --output "D:\Releases\LaurentinaCore-0.9.1"
+..\hy-memory-starter\.venv\Scripts\python.exe -E -s -X utf8 scripts\pack_release.py --output "D:\Releases\LaurentinaCore-0.9.2"
 ```
 
 Use a new destination outside the live workspace. The default is a timestamped directory under the current account's `.codex/releases/`. A standalone tree and ZIP contain relative paths and SHA-256 file records. Existing targets are refused.
